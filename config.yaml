@@ -2,7 +2,8 @@
 
 general:
   assistant_name: "NOVA"
-  language_mode: "auto"        # "auto", "vi", "en"
+  language_mode: "vi"          # Khóa tiếng Việt thuần túy
+  activation_mode: "hotkey_only" # "hotkey_only" (Chỉ nghe khi bấm Ctrl+Space, 0% CPU, không lo tiếng ồn)
   wake_words:
     - "hey nova"
     - "nova ơi"
@@ -13,10 +14,11 @@ general:
 
 speech_recognition:
   model_size: "tiny"           # "tiny", "base" (chạy nhanh trên CPU i5)
+  language: "vi"               # Cố định tiếng Việt, loại bỏ 100% tiếng Trung/Ấn
   device: "cpu"
   compute_type: "int8"         # Tối ưu hóa CPU
-  silence_duration_seconds: 1.2
-  energy_threshold: 1000
+  silence_duration_seconds: 0.9 # Dừng nói 0.9s là xử lý ngay
+  energy_threshold: 800
 
 intelligence:
   engine_mode: "hybrid"        # "hybrid", "offline_only", "online_only"

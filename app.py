@@ -1,5 +1,6 @@
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 import sys
 
 # Configure UTF-8 encoding for Windows console
@@ -138,32 +139,21 @@ class AssistantCoordinator(QObject):
         if not text.strip():
             return
 
-        print(f"[STT] Nhận diện ({lang}): {text}")
+        print(f"[STT] Nhận diện (Tiếng Việt): {text}")
 
-        # Check Wake Word or direct command mode
-        if self.is_waiting_direct_command:
-            self.is_waiting_direct_command = False
-            self.show_thinking_signal.emit(text)
-            self._process_command(text)
+        # Check if dictation mode is on
+        from actions.voice_dictation import dictation_manager
+        if dictation_manager.is_dictating:
+            dictation_manager.type_text(text)
+            self.show_response_signal.emit(f"Đã gõ: {text}")
             return
 
-        is_wake, command = self.wake_detector.check_wake_word_in_text(text)
-        if is_wake:
-            print(f"[Wake Word Triggered] Câu lệnh sau từ khóa: '{command}'")
-            if not command:
-                # User just said "Hey Google" -> chime and wait for command
-                self.is_waiting_direct_command = True
-                self.tts.play_sound_effect(self.beep_listen)
-                self.show_listening_signal.emit()
-            else:
-                self.show_thinking_signal.emit(command)
-                self._process_command(command)
-        else:
-            # Check if dictation mode is on
-            from actions.voice_dictation import dictation_manager
-            if dictation_manager.is_dictating:
-                dictation_manager.type_text(text)
-                self.show_response_signal.emit(f"Đã gõ: {text}")
+        # Strip any optional wake word if spoken (e.g. 'Nova mở Chrome' -> 'mở Chrome')
+        is_wake, clean_cmd = self.wake_detector.check_wake_word_in_text(text)
+        command_to_run = clean_cmd if (is_wake and clean_cmd) else text
+
+        self.show_thinking_signal.emit(command_to_run)
+        self._process_command(command_to_run)
 
     def _process_command(self, query: str):
         self.log_message_signal.emit("User", query)
