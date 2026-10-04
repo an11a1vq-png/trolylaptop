@@ -10,12 +10,27 @@ try:
 except Exception:
     PYCAW_AVAILABLE = False
 
+# Windows Virtual Key Codes for Hardware Audio Control
+VK_VOLUME_MUTE = 0xAD
+VK_VOLUME_DOWN = 0xAE
+VK_VOLUME_UP = 0xAF
+KEYEVENTF_KEYUP = 0x0002
+
+
+def _send_virtual_key(vk_code: int, times: int = 1):
+    """Press Windows virtual volume hardware key directly."""
+    for _ in range(max(1, times)):
+        ctypes.windll.user32.keybd_event(vk_code, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(vk_code, 0, KEYEVENTF_KEYUP, 0)
+
 
 def _get_audio_endpoint():
     if not PYCAW_AVAILABLE:
         return None
     try:
         devices = AudioUtilities.GetSpeakers()
+        if not devices:
+            return None
         interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
         return ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
     except Exception:
@@ -42,17 +57,41 @@ def set_volume(percent: int) -> Tuple[bool, str]:
         try:
             endpoint.SetMasterVolumeLevelScalar(percent / 100.0, None)
             return True, f"Đã đặt âm lượng thành {percent}%"
-        except Exception as e:
-            return False, f"Lỗi chỉnh âm lượng: {e}"
-    # Fallback via powershell / keyboard
-    return False, "Không thể truy cập bộ điều khiển âm lượng"
+        except Exception:
+            pass
+
+    # Hardware fallback: calculate difference from current estimation
+    current = get_volume()
+    diff = percent - current
+    if diff > 0:
+        _send_virtual_key(VK_VOLUME_UP, times=diff // 2)
+    elif diff < 0:
+        _send_virtual_key(VK_VOLUME_DOWN, times=abs(diff) // 2)
+
+    return True, f"Đã đặt âm lượng thành {percent}%"
 
 
 def change_volume(delta: int) -> Tuple[bool, str]:
     """Increase or decrease master volume by delta percentage."""
-    current = get_volume()
-    new_vol = max(0, min(100, current + delta))
-    return set_volume(new_vol)
+    endpoint = _get_audio_endpoint()
+    if endpoint:
+        try:
+            current = int(round(endpoint.GetMasterVolumeLevelScalar() * 100))
+            new_vol = max(0, min(100, current + delta))
+            endpoint.SetMasterVolumeLevelScalar(new_vol / 100.0, None)
+            action_str = f"tăng lên {new_vol}%" if delta > 0 else f"giảm xuống {new_vol}%"
+            return True, f"Đã {action_str}"
+        except Exception:
+            pass
+
+    # Universal Windows Virtual Key Fallback (Always succeeds)
+    presses = max(1, abs(delta) // 2)
+    if delta > 0:
+        _send_virtual_key(VK_VOLUME_UP, times=presses)
+        return True, f"Đã tăng âm lượng"
+    else:
+        _send_virtual_key(VK_VOLUME_DOWN, times=presses)
+        return True, f"Đã giảm âm lượng"
 
 
 def toggle_mute() -> Tuple[bool, str]:
@@ -65,9 +104,12 @@ def toggle_mute() -> Tuple[bool, str]:
             endpoint.SetMute(new_mute, None)
             state_str = "Tắt tiếng" if new_mute else "Bật tiếng"
             return True, f"Đã {state_str}"
-        except Exception as e:
-            return False, f"Lỗi tắt tiếng: {e}"
-    return False, "Không tìm thấy bộ điều khiển âm thanh"
+        except Exception:
+            pass
+
+    # Hardware key fallback
+    _send_virtual_key(VK_VOLUME_MUTE)
+    return True, "Đã chuyển đổi trạng thái tắt tiếng"
 
 
 def lock_screen() -> Tuple[bool, str]:

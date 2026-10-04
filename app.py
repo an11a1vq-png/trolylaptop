@@ -106,6 +106,7 @@ class AssistantCoordinator(QObject):
 
     def _on_hotkey_activated(self, source: str = "hotkey"):
         """Called when Ctrl + Space is pressed or triggered from UI."""
+        self.tts.stop()  # Ngắt lời tức thì nếu AI đang nói
         self.is_waiting_direct_command = True
         self.listener.trigger_hotkey_listen()
         self.tts.play_sound_effect(self.beep_listen)

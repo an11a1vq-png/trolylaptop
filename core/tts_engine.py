@@ -37,6 +37,7 @@ class TTSEngine:
         self._init_audio()
         self._init_pyttsx3()
         self.is_speaking = False
+        self.stop_requested = False
 
     def _init_audio(self):
         if PYGAME_AVAILABLE:
@@ -67,26 +68,31 @@ class TTSEngine:
         threading.Thread(target=_play, daemon=True).start()
 
     def speak(self, text: str, callback_on_finish=None):
-        """Speak the given text asynchronously."""
+        """Speak the given text asynchronously with instant interruption capability."""
         if not text.strip():
             return
+        self.stop_requested = False
         threading.Thread(target=self._speak_worker, args=(text, callback_on_finish), daemon=True).start()
 
     def _speak_worker(self, text: str, callback_on_finish):
         self.is_speaking = True
         success = False
 
+        if self.stop_requested:
+            self.is_speaking = False
+            return
+
         # Detect language heuristic (Check for Vietnamese diacritics)
         is_vietnamese = any(ord(c) > 127 for c in text)
         voice = self.voice_vi if is_vietnamese else self.voice_en
 
-        # 1. Try Edge-TTS (Neural, human-like voice)
-        if self.prefer_online and EDGE_TTS_AVAILABLE:
+        # 1. Try Edge-TTS (with 4-second timeout for instant fallback)
+        if self.prefer_online and EDGE_TTS_AVAILABLE and not self.stop_requested:
             try:
                 temp_file = os.path.join(tempfile.gettempdir(), f"tts_{os.getpid()}_{int(pygame.time.get_ticks() if PYGAME_AVAILABLE else 0)}.mp3")
-                asyncio.run(self._generate_edge_tts(text, voice, temp_file))
+                asyncio.run(self._generate_edge_tts_with_timeout(text, voice, temp_file, timeout_seconds=4.0))
                 
-                if os.path.exists(temp_file):
+                if os.path.exists(temp_file) and not self.stop_requested:
                     self._play_file(temp_file)
                     try:
                         os.remove(temp_file)
@@ -94,10 +100,10 @@ class TTSEngine:
                         pass
                     success = True
             except Exception as e:
-                print(f"[Edge-TTS Error, falling back to offline] {e}")
+                print(f"[Edge-TTS timeout/error, fallback to offline: {e}]")
 
         # 2. Fallback to offline pyttsx3
-        if not success and self.offline_engine:
+        if not success and self.offline_engine and not self.stop_requested:
             try:
                 self.offline_engine.say(text)
                 self.offline_engine.runAndWait()
@@ -106,12 +112,12 @@ class TTSEngine:
                 print(f"[pyttsx3 Error] {e}")
 
         self.is_speaking = False
-        if callback_on_finish:
+        if callback_on_finish and not self.stop_requested:
             callback_on_finish()
 
-    async def _generate_edge_tts(self, text: str, voice: str, output_path: str):
+    async def _generate_edge_tts_with_timeout(self, text: str, voice: str, output_path: str, timeout_seconds: float = 4.0):
         communicate = edge_tts.Communicate(text, voice, rate=self.rate, volume=self.volume)
-        await communicate.save(output_path)
+        await asyncio.wait_for(communicate.save(output_path), timeout=timeout_seconds)
 
     def _play_file(self, file_path: str):
         if not PYGAME_AVAILABLE:
@@ -119,16 +125,24 @@ class TTSEngine:
         try:
             pygame.mixer.music.load(file_path)
             pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                pygame.time.Clock().tick(10)
+            while pygame.mixer.music.get_busy() and not self.stop_requested:
+                pygame.time.Clock().tick(20)
+            if self.stop_requested:
+                pygame.mixer.music.stop()
         except Exception as e:
             print(f"[Audio playback error] {e}")
 
     def stop(self):
-        """Stop any active speech."""
+        """Immediately interrupt any active speech or audio generation."""
+        self.stop_requested = True
+        self.is_speaking = False
         if PYGAME_AVAILABLE:
             try:
                 pygame.mixer.music.stop()
             except Exception:
                 pass
-        self.is_speaking = False
+        if self.offline_engine:
+            try:
+                self.offline_engine.stop()
+            except Exception:
+                pass

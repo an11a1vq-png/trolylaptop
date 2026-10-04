@@ -5,7 +5,8 @@ import json
 import requests
 import datetime
 import platform
-from typing import Tuple
+import re
+from typing import Tuple, Optional, Callable, List, Dict
 
 
 SYSTEM_PROMPT = """Bạn là NOVA, hệ thống trợ lý AI cá nhân thông minh trên máy tính Windows.
@@ -23,10 +24,26 @@ class HybridBrain:
         self.gemini_cfg = self.intel_cfg.get("gemini", {})
         self.mode = self.intel_cfg.get("engine_mode", "hybrid")
 
-    def think_and_reply(self, user_query: str) -> str:
-        """Process user query and return response text."""
-        # 1. Quick built-in offline knowledge
+        # Multi-turn Conversation Memory (stores last N turns)
+        self.history: List[Dict[str, str]] = []
+        self.max_history_turns = 8  # 8 turns = 16 messages
+
+    def clear_memory(self) -> str:
+        """Reset conversation context memory."""
+        self.history.clear()
+        return "Đã xóa toàn bộ ngữ cảnh trò chuyện trước đó."
+
+    def think_and_reply(self, user_query: str, on_sentence_callback: Optional[Callable[[str], None]] = None) -> str:
+        """
+        Process user query with multi-turn memory and optional streaming voice response.
+        """
         query_lower = user_query.strip().lower()
+
+        # Check Memory Reset command
+        if any(q in query_lower for q in ["xóa bộ nhớ", "xóa lịch sử trò chuyện", "quên các câu trước", "bắt đầu cuộc trò chuyện mới", "reset memory"]):
+            return self.clear_memory()
+
+        # 1. Quick built-in offline knowledge (<5ms response)
         if any(q in query_lower for q in ["mấy giờ", "bây giờ là mấy giờ", "thời gian", "what time is it"]):
             dt = datetime.datetime.now()
             now_str = f"{dt.hour} giờ {dt.minute} phút, ngày {dt.day} tháng {dt.month} năm {dt.year}"
@@ -49,23 +66,32 @@ class HybridBrain:
         if gemini_key and self.mode in ["hybrid", "online_only"]:
             reply = self._query_gemini(user_query, gemini_key)
             if reply:
+                self._record_turn(user_query, reply)
                 return reply
 
-        # 3. Try Local Ollama LLM (Offline)
+        # 3. Try Local Ollama LLM (Offline Multi-turn with Streaming)
         if self.mode in ["hybrid", "offline_only"]:
-            reply = self._query_ollama(user_query)
+            reply = self._query_ollama(user_query, on_sentence_callback)
             if reply:
+                self._record_turn(user_query, reply)
                 return reply
 
         # 4. Fallback if Ollama is not yet started and no Gemini API key
         return (
-            f"Tôi đã nghe rõ câu hỏi: '{user_query}'. "
-            "Để tôi trả lời câu hỏi tự do này, bạn có thể khởi động Ollama (mô hình Qwen2.5) hoặc nhập Gemini API key vào phần Cài đặt nhé!"
+            f"Tôi đã ghi nhận: '{user_query}'. "
+            "Để trả lời câu hỏi tự do này, hãy đảm bảo Ollama đang cài trên máy hoặc nhập Gemini API Key vào Cài đặt nhé!"
         )
+
+    def _record_turn(self, user_msg: str, assistant_msg: str):
+        """Append turn to history and keep within window."""
+        self.history.append({"role": "user", "content": user_msg})
+        self.history.append({"role": "assistant", "content": assistant_msg})
+        # Prune older turns
+        if len(self.history) > self.max_history_turns * 2:
+            self.history = self.history[-(self.max_history_turns * 2):]
 
     def _ensure_ollama_alive(self) -> bool:
         """Ensure Ollama service is alive, start it silently if not."""
-        import subprocess, time
         base_url = self.ollama_cfg.get("base_url", "http://localhost:11434")
         try:
             requests.get(base_url, timeout=1)
@@ -83,44 +109,81 @@ class HybridBrain:
                 return True
         return False
 
-    def _query_ollama(self, query: str) -> str:
-        """Call local Ollama REST API."""
+    def _query_ollama(self, query: str, on_sentence_callback: Optional[Callable[[str], None]] = None) -> str:
+        """Call local Ollama REST API using multi-turn /api/chat with streaming."""
         self._ensure_ollama_alive()
         base_url = self.ollama_cfg.get("base_url", "http://localhost:11434")
         model = self.ollama_cfg.get("model", "qwen2.5:3b")
         timeout = self.ollama_cfg.get("timeout_seconds", 30)
 
-        endpoint = f"{base_url.rstrip('/')}/api/generate"
+        # Build messages payload with conversation memory
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages.extend(self.history[-10:])
+        messages.append({"role": "user", "content": query})
+
+        endpoint = f"{base_url.rstrip('/')}/api/chat"
         payload = {
             "model": model,
-            "prompt": f"{SYSTEM_PROMPT}\n\nNgười dùng: {query}\nTrợ lý:",
-            "stream": False
+            "messages": messages,
+            "stream": True
         }
 
         try:
-            resp = requests.post(endpoint, json=payload, timeout=timeout)
-            if resp.status_code == 200:
-                data = resp.json()
-                return data.get("response", "").strip()
+            resp = requests.post(endpoint, json=payload, timeout=timeout, stream=True)
+            if resp.status_code != 200:
+                return ""
+
+            full_reply = []
+            sentence_buffer = ""
+
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line)
+                    token = chunk.get("message", {}).get("content", "")
+                    if token:
+                        full_reply.append(token)
+                        sentence_buffer += token
+
+                        # Check for sentence end: '.', '!', '?', or '\n'
+                        if on_sentence_callback and re.search(r"[.!?\n]\s*$", sentence_buffer):
+                            clean_sentence = sentence_buffer.strip()
+                            if len(clean_sentence) > 5:
+                                on_sentence_callback(clean_sentence)
+                                sentence_buffer = ""
+
+                except Exception:
+                    continue
+
+            # Send any trailing sentence left in buffer
+            if on_sentence_callback and sentence_buffer.strip():
+                on_sentence_callback(sentence_buffer.strip())
+
+            return "".join(full_reply).strip()
+
         except requests.exceptions.RequestException:
-            # Ollama service not reachable
             pass
         return ""
 
     def _query_gemini(self, query: str, api_key: str) -> str:
-        """Call Google Gemini API."""
+        """Call Google Gemini API with multi-turn context."""
         model = self.gemini_cfg.get("model", "gemini-2.5-flash")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": f"{SYSTEM_PROMPT}\n\nNgười dùng: {query}"}
-                    ]
-                }
-            ]
-        }
+
+        # Build Gemini contents from memory
+        contents = []
+        for turn in self.history[-8:]:
+            role = "user" if turn["role"] == "user" else "model"
+            contents.append({"role": role, "parts": [{"text": turn["content"]}]})
+
+        contents.append({
+            "role": "user",
+            "parts": [{"text": f"{SYSTEM_PROMPT}\n\nNgười dùng: {query}"}]
+        })
+
+        payload = {"contents": contents}
 
         try:
             resp = requests.post(url, headers=headers, json=payload, timeout=12)
