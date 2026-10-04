@@ -23,7 +23,7 @@ def take_screenshot() -> Tuple[bool, str]:
         
         screenshot = pyautogui.screenshot()
         screenshot.save(filepath)
-        return True, f"Đã chụp ảnh màn hình và lưu tại Pictures\\Screenshots"
+        return True, "Đã chụp ảnh màn hình và lưu tại thư mục Pictures\\Screenshots"
     except Exception as e:
         return False, f"Lỗi chụp ảnh màn hình: {e}"
 
@@ -50,6 +50,17 @@ def close_active_window() -> Tuple[bool, str]:
         return False, f"Lỗi: {e}"
 
 
+def close_active_tab() -> Tuple[bool, str]:
+    """Close currently active browser or editor tab (Ctrl + W)."""
+    if not PYAUTOGUI_AVAILABLE:
+        return False, "Lỗi pyautogui"
+    try:
+        pyautogui.hotkey('ctrl', 'w')
+        return True, "Đã đóng tab hiện tại"
+    except Exception as e:
+        return False, f"Lỗi: {e}"
+
+
 def switch_window() -> Tuple[bool, str]:
     """Switch active window (Alt + Tab)."""
     if not PYAUTOGUI_AVAILABLE:
@@ -57,5 +68,16 @@ def switch_window() -> Tuple[bool, str]:
     try:
         pyautogui.hotkey('alt', 'tab')
         return True, "Đã chuyển cửa sổ"
+    except Exception as e:
+        return False, f"Lỗi: {e}"
+
+
+def maximize_window() -> Tuple[bool, str]:
+    """Maximize current window (Win + Up)."""
+    if not PYAUTOGUI_AVAILABLE:
+        return False, "Lỗi pyautogui"
+    try:
+        pyautogui.hotkey('win', 'up')
+        return True, "Đã phóng to cửa sổ"
     except Exception as e:
         return False, f"Lỗi: {e}"

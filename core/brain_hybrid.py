@@ -32,6 +32,12 @@ class HybridBrain:
             now_str = f"{dt.hour} giờ {dt.minute} phút, ngày {dt.day} tháng {dt.month} năm {dt.year}"
             return f"Bây giờ là {now_str}."
 
+        if any(q in query_lower for q in ["ngày mấy", "ngày bao nhiêu", "thứ mấy", "hôm nay là ngày", "what date"]):
+            dt = datetime.datetime.now()
+            days = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"]
+            day_str = days[dt.weekday()]
+            return f"Hôm nay là {day_str}, ngày {dt.day} tháng {dt.month} năm {dt.year}."
+
         if any(q in query_lower for q in ["bạn là ai", "tên bạn là gì", "who are you", "tên gì"]):
             return "Tôi là NOVA, trợ lý AI cá nhân trên máy tính của bạn."
 
