@@ -1,3 +1,6 @@
+import os
+import time
+import subprocess
 import json
 import requests
 import datetime
@@ -54,11 +57,32 @@ class HybridBrain:
             "Để tôi trả lời câu hỏi tự do này, bạn có thể khởi động Ollama (mô hình Qwen2.5) hoặc nhập Gemini API key vào phần Cài đặt nhé!"
         )
 
+    def _ensure_ollama_alive(self) -> bool:
+        """Ensure Ollama service is alive, start it silently if not."""
+        import subprocess, time
+        base_url = self.ollama_cfg.get("base_url", "http://localhost:11434")
+        try:
+            requests.get(base_url, timeout=1)
+            return True
+        except Exception:
+            ollama_path = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe")
+            if os.path.exists(ollama_path):
+                subprocess.Popen(
+                    [ollama_path, "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=0x08000000
+                )
+                time.sleep(2)
+                return True
+        return False
+
     def _query_ollama(self, query: str) -> str:
         """Call local Ollama REST API."""
+        self._ensure_ollama_alive()
         base_url = self.ollama_cfg.get("base_url", "http://localhost:11434")
-        model = self.ollama_cfg.get("model", "qwen2.5:1.5b")
-        timeout = self.ollama_cfg.get("timeout_seconds", 15)
+        model = self.ollama_cfg.get("model", "qwen2.5:3b")
+        timeout = self.ollama_cfg.get("timeout_seconds", 30)
 
         endpoint = f"{base_url.rstrip('/')}/api/generate"
         payload = {
