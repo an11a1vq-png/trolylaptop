@@ -19,15 +19,15 @@ class DashboardWindow(QMainWindow):
         self.config = config
         self.config_path = config_path
 
-        self.setWindowTitle("Hey Google Assistant - Bảng Điều Khiển")
-        self.resize(750, 560)
+        self.setWindowTitle("NOVA AI Assistant - Bảng Điều Khiển")
+        self.resize(760, 570)
         self._setup_style()
         self._init_ui()
 
     def _setup_style(self):
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #121212;
+                background-color: #0A0B10;
             }
             QWidget {
                 color: #E8EAED;
@@ -35,57 +35,60 @@ class DashboardWindow(QMainWindow):
                 font-size: 13px;
             }
             QTabWidget::pane {
-                border: 1px solid #3C4043;
-                background-color: #1E1E1E;
-                border-radius: 8px;
+                border: 1px solid rgba(0, 242, 254, 0.25);
+                background-color: #12131D;
+                border-radius: 10px;
             }
             QTabBar::tab {
-                background: #28292A;
+                background: #1A1C2C;
                 color: #9AA0A6;
-                padding: 10px 20px;
+                padding: 10px 22px;
                 margin-right: 4px;
-                border-top-left-radius: 6px;
-                border-top-right-radius: 6px;
-                font-weight: 500;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                font-weight: 600;
             }
             QTabBar::tab:selected {
-                background: #1E1E1E;
-                color: #8AB4F8;
-                border-bottom: 2px solid #8AB4F8;
+                background: #12131D;
+                color: #00F2FE;
+                border-bottom: 2px solid #00F2FE;
             }
             QPushButton {
-                background-color: #8AB4F8;
-                color: #202124;
-                font-weight: 600;
-                padding: 8px 16px;
-                border-radius: 6px;
+                background-color: #00F2FE;
+                color: #0A0B10;
+                font-weight: 700;
+                padding: 9px 18px;
+                border-radius: 7px;
                 border: none;
             }
             QPushButton:hover {
-                background-color: #AECBFA;
+                background-color: #4FACFE;
+                color: #FFFFFF;
             }
             QPushButton:pressed {
-                background-color: #669DF6;
+                background-color: #00C4D6;
             }
             QPushButton.secondary {
-                background-color: #3C4043;
+                background-color: #222538;
                 color: #E8EAED;
+                border: 1px solid rgba(255, 255, 255, 0.08);
             }
             QPushButton.secondary:hover {
-                background-color: #5F6368;
+                background-color: #2E334D;
+                border-color: rgba(0, 242, 254, 0.4);
             }
             QLineEdit, QTextEdit {
-                background-color: #28292A;
+                background-color: #161826;
                 color: #E8EAED;
-                border: 1px solid #5F6368;
+                border: 1px solid rgba(0, 242, 254, 0.2);
                 border-radius: 6px;
                 padding: 8px;
             }
             QLineEdit:focus, QTextEdit:focus {
-                border: 1px solid #8AB4F8;
+                border: 1px solid #00F2FE;
             }
             QGroupBox {
-                border: 1px solid #3C4043;
+                border: 1px solid rgba(0, 242, 254, 0.2);
                 border-radius: 8px;
                 margin-top: 14px;
                 padding-top: 12px;
@@ -95,7 +98,7 @@ class DashboardWindow(QMainWindow):
                 subcontrol-origin: margin;
                 left: 14px;
                 padding: 0 4px;
-                color: #8AB4F8;
+                color: #00F2FE;
             }
         """)
 
@@ -107,10 +110,10 @@ class DashboardWindow(QMainWindow):
 
         # Header Title
         header_layout = QHBoxLayout()
-        title_label = QLabel("Trợ Lý Ảo Hey Google (PC Windows)")
-        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #FFFFFF;")
-        self.status_badge = QLabel("● Đang chạy nền")
-        self.status_badge.setStyleSheet("color: #81C995; font-size: 13px; font-weight: 600;")
+        title_label = QLabel("⚡ NOVA AI ASSISTANT")
+        title_label.setStyleSheet("font-size: 21px; font-weight: bold; color: #00F2FE; letter-spacing: 1px;")
+        self.status_badge = QLabel("● NOVA ONLINE")
+        self.status_badge.setStyleSheet("color: #00F2FE; font-size: 13px; font-weight: 700; letter-spacing: 0.5px;")
         header_layout.addWidget(title_label)
         header_layout.addStretch()
         header_layout.addWidget(self.status_badge)

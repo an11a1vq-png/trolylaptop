@@ -90,7 +90,7 @@ class AssistantCoordinator(QObject):
 
     def start(self):
         """Start all services."""
-        print("[Assistant] Khởi động Hey Google Assistant...")
+        print("[Assistant] Khởi động NOVA AI Assistant...")
         self.tray.show()
         self.dashboard.show()
 
@@ -101,7 +101,7 @@ class AssistantCoordinator(QObject):
         self.listener.start()
         self.wake_detector.start_hotkey_listener()
 
-        self.log_message_signal.emit("System", "Trợ lý ảo Hey Google đã sẵn sàng hoạt động!")
+        self.log_message_signal.emit("System", "⚡ Hệ thống trợ lý AI NOVA đã sẵn sàng hoạt động!")
 
     def _on_hotkey_activated(self, source: str = "hotkey"):
         """Called when Ctrl + Space is pressed or triggered from UI."""

@@ -1,13 +1,13 @@
 # Configuration for Hey Google Assistant (Windows)
 
 general:
-  assistant_name: "Hey Google"
+  assistant_name: "NOVA"
   language_mode: "auto"        # "auto", "vi", "en"
   wake_words:
-    - "hey google"
-    - "google ơi"
-    - "trợ lý ơi"
-    - "jarvis"
+    - "hey nova"
+    - "nova ơi"
+    - "nova"
+    - "ê nova"
   activation_hotkey: "ctrl+space"   # Phím tắt toàn cục
   sound_effects: true               # Âm thanh beep khi kích hoạt
 

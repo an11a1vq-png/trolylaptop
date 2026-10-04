@@ -5,10 +5,11 @@ import platform
 from typing import Tuple
 
 
-SYSTEM_PROMPT = """Bạn là trợ lý ảo 'Hey Google' trên máy tính Windows.
-Nhiệm vụ của bạn là hỗ trợ người dùng nhiệt tình, ngắn gọn, súc tích và hữu ích.
-Hãy trả lời trực tiếp, tự nhiên bằng cùng ngôn ngữ của người dùng (tiếng Việt hoặc tiếng Anh).
-Không viết câu trả lời quá dài dòng trừ khi người dùng yêu cầu giải thích chi tiết."""
+SYSTEM_PROMPT = """Bạn là NOVA, hệ thống trợ lý AI cá nhân thông minh trên máy tính Windows.
+Phong cách giao tiếp của bạn:
+- Tối giản, siêu nhanh, dứt khoát và chính xác tuyệt đối.
+- Báo cáo kết quả trực tiếp, không chào hỏi hay xưng hô rườm rà.
+- Trả lời bằng cùng ngôn ngữ của người dùng (tiếng Việt hoặc tiếng Anh)."""
 
 
 class HybridBrain:
@@ -28,8 +29,8 @@ class HybridBrain:
             now_str = f"{dt.hour} giờ {dt.minute} phút, ngày {dt.day} tháng {dt.month} năm {dt.year}"
             return f"Bây giờ là {now_str}."
 
-        if any(q in query_lower for q in ["bạn là ai", "tên bạn là gì", "who are you"]):
-            return "Tôi là Hey Google, trợ lý ảo thông minh chạy trực tiếp trên máy tính Windows của bạn."
+        if any(q in query_lower for q in ["bạn là ai", "tên bạn là gì", "who are you", "tên gì"]):
+            return "Tôi là NOVA, trợ lý AI cá nhân trên máy tính của bạn."
 
         if any(q in query_lower for q in ["thông tin máy tính", "cấu hình máy", "system info"]):
             return f"Máy tính của bạn đang chạy hệ điều hành {platform.system()} {platform.release()}, vi xử lý {platform.processor()}."

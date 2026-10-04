@@ -1,28 +1,38 @@
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QPen, QBrush, QAction
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QPen, QBrush, QRadialGradient, QAction
 from PyQt6.QtWidgets import QSystemTrayIcon, QMenu
 
 
-def create_assistant_icon() -> QIcon:
-    """Dynamically generate a crisp 64x64 Google Assistant 4-color icon."""
+def create_nova_icon() -> QIcon:
+    """Generate a high-tech glowing Cosmic Nova Star / Orb icon (Cyan & Violet)."""
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.GlobalColor.transparent)
 
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-    # 4 Google Assistant dots
-    dots = [
-        (20, 32, 9, QColor(66, 133, 244)),   # Blue
-        (30, 24, 8, QColor(234, 67, 53)),    # Red
-        (40, 28, 7, QColor(251, 188, 5)),    # Yellow
-        (48, 36, 6, QColor(52, 168, 83)),    # Green
-    ]
+    center = QPoint(32, 32)
 
+    # 1. Outer Cyan Aura / Glow
+    radial = QRadialGradient(32, 32, 28)
+    radial.setColorAt(0.0, QColor(0, 242, 254, 220))    # Intense Cyan center
+    radial.setColorAt(0.45, QColor(79, 172, 254, 180))  # Blue transition
+    radial.setColorAt(0.75, QColor(127, 0, 255, 120))   # Violet shimmer
+    radial.setColorAt(1.0, QColor(0, 0, 0, 0))          # Fade to transparent
+
+    painter.setBrush(QBrush(radial))
     painter.setPen(Qt.PenStyle.NoPen)
-    for x, y, r, color in dots:
-        painter.setBrush(QBrush(color))
-        painter.drawEllipse(x - r, y - r, r * 2, r * 2)
+    painter.drawEllipse(center, 28, 28)
+
+    # 2. Solid Inner Cyber Core
+    painter.setBrush(QBrush(QColor(15, 16, 24)))
+    painter.setPen(QPen(QColor(0, 242, 254), 2.5))
+    painter.drawEllipse(center, 14, 14)
+
+    # 3. Bright White-Cyan Star Flare at center
+    painter.setBrush(QBrush(QColor(255, 255, 255)))
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.drawEllipse(center, 5, 5)
 
     painter.end()
     return QIcon(pixmap)
@@ -35,8 +45,8 @@ class AssistantTrayIcon(QSystemTrayIcon):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setIcon(create_assistant_icon())
-        self.setToolTip("Hey Google Assistant (Windows)")
+        self.setIcon(create_nova_icon())
+        self.setToolTip("NOVA AI Assistant (Windows)")
         self._create_menu()
         self.activated.connect(self._on_tray_activated)
 
@@ -44,33 +54,40 @@ class AssistantTrayIcon(QSystemTrayIcon):
         menu = QMenu()
         menu.setStyleSheet("""
             QMenu {
-                background-color: #28292A;
+                background-color: #0F1018;
                 color: #FFFFFF;
-                border: 1px solid #3C4043;
-                border-radius: 6px;
-                padding: 4px;
+                border: 1px solid rgba(0, 242, 254, 0.4);
+                border-radius: 8px;
+                padding: 6px;
             }
             QMenu::item {
-                padding: 6px 20px;
-                border-radius: 4px;
+                padding: 7px 22px;
+                border-radius: 5px;
+                font-family: 'Segoe UI';
+                font-size: 13px;
             }
             QMenu::item:selected {
-                background-color: #3C4043;
-                color: #8AB4F8;
+                background-color: #1A1C2C;
+                color: #00F2FE;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: rgba(255, 255, 255, 0.12);
+                margin: 4px 8px;
             }
         """)
 
-        action_dashboard = QAction("📊 Mở Bảng Điều Khiển", self)
+        action_dashboard = QAction("⚡ Mở Bảng Điều Khiển NOVA", self)
         action_dashboard.triggered.connect(self.open_dashboard_signal.emit)
 
-        action_listen = QAction("🎤 Bắt Đầu Nghe (Ctrl + Space)", self)
+        action_listen = QAction("🎤 Lắng Nghe Ngay (Ctrl + Space)", self)
         action_listen.triggered.connect(self.trigger_listen_signal.emit)
 
         menu.addAction(action_dashboard)
         menu.addAction(action_listen)
         menu.addSeparator()
 
-        action_quit = QAction("❌ Thoát Ứng Dụng", self)
+        action_quit = QAction("❌ Thoát NOVA", self)
         action_quit.triggered.connect(self.quit_signal.emit)
         menu.addAction(action_quit)
 
