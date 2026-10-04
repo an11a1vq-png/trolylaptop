@@ -1,0 +1,49 @@
+# Configuration for Hey Google Assistant (Windows)
+
+general:
+  assistant_name: "Hey Google"
+  language_mode: "auto"        # "auto", "vi", "en"
+  wake_words:
+    - "hey google"
+    - "google ơi"
+    - "trợ lý ơi"
+    - "jarvis"
+  activation_hotkey: "ctrl+space"   # Phím tắt toàn cục
+  sound_effects: true               # Âm thanh beep khi kích hoạt
+
+speech_recognition:
+  model_size: "tiny"           # "tiny", "base" (chạy nhanh trên CPU i5)
+  device: "cpu"
+  compute_type: "int8"         # Tối ưu hóa CPU
+  silence_duration_seconds: 1.2
+  energy_threshold: 1000
+
+intelligence:
+  engine_mode: "hybrid"        # "hybrid", "offline_only", "online_only"
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "qwen2.5:1.5b"      # hoặc qwen2.5:3b
+    timeout_seconds: 15
+  gemini:
+    api_key: ""                # Điền API key nếu muốn kích hoạt Google Gemini Cloud
+    model: "gemini-2.5-flash"
+
+text_to_speech:
+  online_voice_vi: "vi-VN-HoaiMyNeural"    # Edge-TTS
+  online_voice_en: "en-US-JennyNeural"
+  rate: "+0%"
+  volume: "+0%"
+  prefer_online: true          # Tự động dùng Edge-TTS khi có mạng, offline dùng pyttsx3
+
+safety:
+  confirm_shutdown: true       # Xác nhận trước khi tắt máy
+  confirm_restart: true        # Xác nhận trước khi khởi động lại
+  confirm_scripts: true        # Xác nhận trước khi chạy script tự động
+
+custom_apps:
+  chrome: "chrome.exe"
+  spotify: "spotify.exe"
+  notepad: "notepad.exe"
+  explorer: "explorer.exe"
+  vscode: "code"
+  calculator: "calc.exe"
