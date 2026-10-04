@@ -122,6 +122,22 @@ class HybridBrain:
                 return True
         return False
 
+    def preload_model(self):
+        """Warm up / Preload Ollama model into RAM in background so first query has zero cold-start delay."""
+        if self.mode in ["hybrid", "offline_only"] and self.ollama_cfg.get("preload", True):
+            try:
+                self._ensure_ollama_alive()
+                base_url = self.ollama_cfg.get("base_url", "http://localhost:11434")
+                model = self.ollama_cfg.get("model", "qwen2.5:3b")
+                payload = {
+                    "model": model,
+                    "keep_alive": -1  # Keep loaded indefinitely while NOVA is active
+                }
+                requests.post(f"{base_url.rstrip('/')}/api/generate", json=payload, timeout=25)
+                print(f"[Ollama] Đã nạp sẵn model '{model}' vào RAM sẵn sàng phản hồi tức thì!")
+            except Exception as e:
+                print(f"[Ollama Preload Notice] {e}")
+
     def _query_ollama(self, query: str, on_sentence_callback: Optional[Callable[[str], None]] = None) -> str:
         """Call local Ollama REST API using multi-turn /api/chat with streaming."""
         self._ensure_ollama_alive()
@@ -138,7 +154,8 @@ class HybridBrain:
         payload = {
             "model": model,
             "messages": messages,
-            "stream": True
+            "stream": True,
+            "keep_alive": -1
         }
 
         try:

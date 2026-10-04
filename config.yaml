@@ -26,6 +26,7 @@ intelligence:
     base_url: http://localhost:11434
     model: qwen2.5:3b
     timeout_seconds: 25
+    preload: true
 safety:
   confirm_restart: true
   confirm_scripts: true

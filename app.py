@@ -109,8 +109,9 @@ class AssistantCoordinator(QObject):
         self.tray.show()
         self.dashboard.show()
 
-        # Preload STT in background thread to avoid GUI freeze
+        # Preload STT and Ollama LLM in background threads to avoid GUI freeze and cold-start latency
         threading.Thread(target=self.stt.load_model, daemon=True).start()
+        threading.Thread(target=self.brain.preload_model, daemon=True).start()
 
         # Start microphone listener and hotkeys
         self.listener.start()
