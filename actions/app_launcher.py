@@ -72,8 +72,8 @@ def clean_target_name(name: str) -> str:
     cleaned = name.strip().lower()
     # Remove polite phrases
     cleaned = re.sub(r"^(?:hãy\s+|làm ơn\s+|cho tôi\s+|cho mình\s+|giúp tôi\s+|giùm tôi\s+|hộ tôi\s+|hộ mình\s+|vui lòng\s+)", "", cleaned)
-    # Remove app/web prefix fillers
-    cleaned = re.sub(r"^(?:trang web\s+|trang\s+|web\s+|website\s+|ứng dụng\s+|phần mềm\s+|app\s+)", "", cleaned)
+    # Remove app/web/game prefix fillers
+    cleaned = re.sub(r"^(?:trang web\s+|trang\s+|web\s+|website\s+|ứng dụng\s+|phần mềm\s+|app\s+|game\s+|trò chơi\s+)", "", cleaned)
     # Remove trailing platform references
     cleaned = re.sub(r"\s+(?:trên|qua|ở|tại|bằng|on)\s+(?:youtube|google|web|mạng)$", "", cleaned, flags=re.IGNORECASE)
     # Remove trailing words
@@ -82,7 +82,7 @@ def clean_target_name(name: str) -> str:
 
 
 def _find_app_path(target: str) -> Optional[str]:
-    """Find absolute path of an application via filesystem, PATH, or Windows Registry."""
+    """Find absolute path of an application via filesystem, PATH, Windows Registry, or Desktop/Start Menu shortcuts."""
     # 1. Full path exists
     if os.path.exists(target):
         return target
@@ -107,6 +107,38 @@ def _find_app_path(target: str) -> Optional[str]:
                         return val
             except OSError:
                 pass
+
+    # 4. Check Desktop and Start Menu Shortcuts (.lnk, .url for Steam/Epic games and Windows apps)
+    norm_target = target.lower().strip()
+    norm_clean = re.sub(r"^(?:game\s+|trò chơi\s+)", "", norm_target).strip()
+    search_dirs = [
+        os.path.expandvars(r"%USERPROFILE%\Desktop"),
+        os.path.expandvars(r"%PUBLIC%\Desktop"),
+        os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs"),
+        os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs"),
+    ]
+
+    best_match = None
+    for sdir in search_dirs:
+        if not os.path.exists(sdir):
+            continue
+        try:
+            for root, _, files in os.walk(sdir):
+                for f in files:
+                    fname_lower, ext = os.path.splitext(f.lower())
+                    if ext in [".lnk", ".url"]:
+                        # Exact match
+                        if fname_lower == norm_target or fname_lower == norm_clean:
+                            return os.path.join(root, f)
+                        # Substring match (e.g. 'goose goose duck' in 'goose goose duck.url')
+                        if norm_clean and norm_clean in fname_lower:
+                            best_match = os.path.join(root, f)
+        except Exception:
+            continue
+
+    if best_match:
+        return best_match
+
     return None
 
 

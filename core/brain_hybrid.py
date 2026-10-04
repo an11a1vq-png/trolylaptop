@@ -8,6 +8,8 @@ import platform
 import re
 from typing import Tuple, Optional, Callable, List, Dict
 
+from core.memory_manager import memory_manager
+
 
 SYSTEM_PROMPT = """Bạn là NOVA, hệ thống trợ lý AI cá nhân thông minh trên máy tính Windows.
 Phong cách giao tiếp của bạn:
@@ -37,14 +39,20 @@ class HybridBrain:
             except Exception:
                 pass
 
-        # Multi-turn Conversation Memory (stores last N turns)
-        self.history: List[Dict[str, str]] = []
+        # Multi-turn Conversation Memory loaded from persistent storage
+        self.history: List[Dict[str, str]] = memory_manager.get_recent_history_for_llm(16)
         self.max_history_turns = 8  # 8 turns = 16 messages
 
+    def _get_effective_system_prompt(self) -> str:
+        injection = memory_manager.get_system_prompt_injection()
+        if injection:
+            return SYSTEM_PROMPT + "\n" + injection
+        return SYSTEM_PROMPT
+
     def clear_memory(self) -> str:
-        """Reset conversation context memory."""
+        """Reset conversation context memory while preserving learned user facts."""
         self.history.clear()
-        return "Đã xóa toàn bộ ngữ cảnh trò chuyện trước đó."
+        return memory_manager.clear_history_only()
 
     def think_and_reply(self, user_query: str, on_sentence_callback: Optional[Callable[[str], None]] = None) -> str:
         """
@@ -55,6 +63,22 @@ class HybridBrain:
         # Check Memory Reset command
         if any(q in query_lower for q in ["xóa bộ nhớ", "xóa lịch sử trò chuyện", "quên các câu trước", "bắt đầu cuộc trò chuyện mới", "reset memory"]):
             return self.clear_memory()
+
+        if any(q in query_lower for q in ["xóa sạch bộ nhớ", "quên hết mọi thứ", "reset all memory"]):
+            self.history.clear()
+            return memory_manager.clear_all()
+
+        # Check explicit user queries about their memory
+        mem_reply = memory_manager.query_memory_explicitly(user_query)
+        if mem_reply:
+            self._record_turn(user_query, mem_reply)
+            return mem_reply
+
+        # Check if user is teaching NOVA something to remember
+        learned_reply = memory_manager.detect_and_learn_facts(user_query)
+        if learned_reply:
+            self._record_turn(user_query, learned_reply)
+            return learned_reply
 
         # 1. Quick built-in offline knowledge (<5ms response)
         if any(q in query_lower for q in ["mấy giờ", "bây giờ là mấy giờ", "thời gian", "what time is it"]):
@@ -69,6 +93,9 @@ class HybridBrain:
             return f"Hôm nay là {day_str}, ngày {dt.day} tháng {dt.month} năm {dt.year}."
 
         if any(q in query_lower for q in ["bạn là ai", "tên bạn là gì", "who are you", "tên gì"]):
+            user_name = memory_manager.user_profile.get("name")
+            if user_name:
+                return f"Tôi là NOVA, trợ lý AI cá nhân của bạn, {user_name}."
             return "Tôi là NOVA, trợ lý AI cá nhân trên máy tính của bạn."
 
         if any(q in query_lower for q in ["thông tin máy tính", "cấu hình máy", "system info"]):
@@ -96,9 +123,11 @@ class HybridBrain:
         )
 
     def _record_turn(self, user_msg: str, assistant_msg: str):
-        """Append turn to history and keep within window."""
+        """Append turn to history, persist to disk via memory_manager, and keep within window."""
         self.history.append({"role": "user", "content": user_msg})
         self.history.append({"role": "assistant", "content": assistant_msg})
+        memory_manager.add_turn("user", user_msg)
+        memory_manager.add_turn("assistant", assistant_msg)
         # Prune older turns
         if len(self.history) > self.max_history_turns * 2:
             self.history = self.history[-(self.max_history_turns * 2):]
@@ -145,8 +174,8 @@ class HybridBrain:
         model = self.ollama_cfg.get("model", "qwen2.5:3b")
         timeout = self.ollama_cfg.get("timeout_seconds", 30)
 
-        # Build messages payload with conversation memory
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        # Build messages payload with conversation memory and long-term user facts
+        messages = [{"role": "system", "content": self._get_effective_system_prompt()}]
         messages.extend(self.history[-10:])
         messages.append({"role": "user", "content": query})
 
@@ -210,7 +239,7 @@ class HybridBrain:
 
         contents.append({
             "role": "user",
-            "parts": [{"text": f"{SYSTEM_PROMPT}\n\nNgười dùng: {query}"}]
+            "parts": [{"text": f"{self._get_effective_system_prompt()}\n\nNgười dùng: {query}"}]
         })
 
         payload = {"contents": contents}

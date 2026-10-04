@@ -8,11 +8,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Temporary audio & environment secrets
+# Temporary audio & environment secrets & user memory
 *.mp3
 tmp/
 .env
 *.env
+data/
+*.tmp
 
 # OS files
 Thumbs.db

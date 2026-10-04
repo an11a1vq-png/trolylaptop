@@ -127,6 +127,26 @@ class DashboardWindow(QMainWindow):
         tabs.addTab(self._create_settings_tab(), "Cài Đặt & AI")
         main_layout.addWidget(tabs)
 
+        # Load persisted conversation history on startup
+        self._load_saved_history()
+
+    def _load_saved_history(self):
+        try:
+            from core.memory_manager import memory_manager
+            past_msgs = memory_manager.conversation_history[-15:]
+            if past_msgs:
+                self.log_text.append("<span style='color: #00F2FE;'><i>📜 Lịch sử hội thoại trước đó (Bộ nhớ vĩnh viễn):</i></span>")
+                for item in past_msgs:
+                    role = "User" if item.get("role") == "user" else "Assistant"
+                    ts = item.get("timestamp", "").split(" ")[-1] if " " in item.get("timestamp", "") else ""
+                    msg = item.get("content", "")
+                    color = "#00F2FE" if role == "Assistant" else "#00FF87"
+                    time_str = f"[{ts}] " if ts else ""
+                    self.log_text.append(f"<span style='color: #7F8C8D;'>{time_str}</span><b style='color: {color};'>{role}:</b> {msg}")
+                self.log_text.append("<span style='color: #00F2FE;'><i>──────────────────────────────────────────</i></span>")
+        except Exception:
+            pass
+
     def _create_history_tab(self) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -153,7 +173,7 @@ class DashboardWindow(QMainWindow):
         btn_layout = QHBoxLayout()
         clear_btn = QPushButton("Xóa lịch sử")
         clear_btn.setProperty("class", "secondary")
-        clear_btn.clicked.connect(self.log_text.clear)
+        clear_btn.clicked.connect(self._on_clear_history)
         btn_layout.addStretch()
         btn_layout.addWidget(clear_btn)
 
@@ -162,6 +182,15 @@ class DashboardWindow(QMainWindow):
         layout.addLayout(chat_layout)
         layout.addLayout(btn_layout)
         return widget
+
+    def _on_clear_history(self):
+        try:
+            from core.memory_manager import memory_manager
+            memory_manager.clear_history_only()
+        except Exception:
+            pass
+        self.log_text.clear()
+        self.log_text.append("<span style='color: #7F8C8D;'><i>Đã xóa lịch sử trò chuyện. Thông tin ghi nhớ dài hạn (Tên, sở thích) vẫn được bảo toàn.</i></span>")
 
     def _on_dashboard_chat_submit(self):
         text = self.dashboard_chat_input.text().strip()

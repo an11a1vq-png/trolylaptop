@@ -174,9 +174,9 @@ class IntentRouter:
             success, msg = search_youtube(song_or_video, specific_browser=specific_browser)
             return True, msg, "action"
 
-        # 6. Open Applications / Websites / Folders
-        # Supports verbs: mở, bật, khởi động, chạy, vào, truy cập, open, launch
-        open_match = re.search(r"^(?:mở|bật|khởi động|chạy|vào|truy cập|open|launch)\s+(.+)", norm)
+        # 6. Open Applications / Websites / Folders / Games
+        # Supports verbs: mở, bật, khởi động, chạy, vào, truy cập, chơi, open, launch
+        open_match = re.search(r"^(?:mở|bật|khởi động|chạy|vào|truy cập|chơi|open|launch)\s+(.+)", norm)
         if open_match:
             target = open_match.group(1).strip()
             # If target is project folder
