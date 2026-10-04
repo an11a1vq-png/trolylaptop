@@ -15,6 +15,7 @@ from actions.window_manager import (
 )
 from actions.voice_dictation import dictation_manager
 from actions.custom_scripts import open_folder, run_custom_script
+from core.command_manager import command_manager
 
 
 def _clean_conversational_fillers(text: str) -> str:
@@ -82,7 +83,100 @@ class IntentRouter:
             dictation_manager.type_text(raw_text)
             return True, f"Đã gõ: {raw_text}", "dictation"
 
-        # 3. System Volume & Audio Control (Bulletproof matching without false positives on 'nhạc')
+        # 3. Natural Language Command Training (e.g. 'Dạy lệnh /game: mở goose goose duck')
+        teach_result = command_manager.parse_and_teach(raw_text)
+        if teach_result is not None:
+            success, msg = teach_result
+            return True, msg, "action"
+
+        # 4. Direct Slash Commands (e.g. /hoi, /tuvan, /nhac, /app, /tim, /chup, /khoa, /clear)
+        if raw_text.startswith("/"):
+            parts = raw_text.split(maxsplit=1)
+            cmd_name = parts[0].lower()
+            args = parts[1].strip() if len(parts) > 1 else ""
+
+            if cmd_name == "/hoi":
+                if not args:
+                    return True, "Vui lòng nhập câu hỏi sau /hoi. Ví dụ: /hoi thủ đô nước Pháp là gì?", "action"
+                prompt = f"[CHẾ ĐỘ HỎI ĐÁP NHANH] Trả lời cực kỳ ngắn gọn, súc tích (1-3 câu), đi thẳng vào câu trả lời chính, không dài dòng: {args}"
+                return False, prompt, "llm"
+
+            elif cmd_name == "/tuvan":
+                if not args:
+                    return True, "Vui lòng nhập vấn đề cần tư vấn sau /tuvan. Ví dụ: /tuvan cách học lập trình Python", "action"
+                prompt = f"[CHẾ ĐỘ TƯ VẤN CHUYÊN GIA] Hãy đóng vai chuyên gia tư vấn hàng đầu, phân tích sâu, đưa ra lời khuyên chi tiết từng bước và phương án tối ưu cho: {args}"
+                return False, prompt, "llm"
+
+            elif cmd_name == "/nhac":
+                if not args:
+                    return True, "Vui lòng nhập tên bài hát sau /nhac. Ví dụ: /nhac lưu niên", "action"
+                success, msg = search_youtube(args)
+                return True, msg, "action"
+
+            elif cmd_name == "/app":
+                if not args:
+                    return True, "Vui lòng nhập tên ứng dụng sau /app. Ví dụ: /app lol hoặc /app chrome", "action"
+                success, msg = open_application(args)
+                return True, msg, "action"
+
+            elif cmd_name == "/tim":
+                if not args:
+                    return True, "Vui lòng nhập nội dung tìm kiếm sau /tim.", "action"
+                success, msg = search_google(args)
+                return True, msg, "action"
+
+            elif cmd_name == "/yt":
+                if not args:
+                    return True, "Vui lòng nhập từ khóa tìm kiếm YouTube sau /yt.", "action"
+                success, msg = search_youtube(args)
+                return True, msg, "action"
+
+            elif cmd_name in ["/chup", "/screenshot"]:
+                success, msg = take_screenshot()
+                return True, msg, "action"
+
+            elif cmd_name in ["/khoa", "/lock"]:
+                success, msg = lock_screen()
+                return True, msg, "action"
+
+            elif cmd_name == "/desktop":
+                success, msg = minimize_all_windows()
+                return True, msg, "action"
+
+            elif cmd_name in ["/amluong", "/vol"]:
+                if not args:
+                    return True, "Vui lòng nhập mức âm lượng sau /amluong. Ví dụ: /amluong 50", "action"
+                try:
+                    val_match = re.search(r'\d+', args)
+                    if val_match:
+                        val = int(val_match.group())
+                        success, msg = set_volume(val)
+                        return True, msg, "action"
+                except Exception:
+                    pass
+                return False, "Mức âm lượng không hợp lệ", "action"
+
+            elif cmd_name == "/clear":
+                return True, "CLEAR_CHAT_HISTORY", "clear"
+
+            # Check user-defined custom commands
+            for c in command_manager.custom_commands:
+                if c["name"] == cmd_name:
+                    c_type = c.get("type", "action")
+                    c_action = c.get("action_content", "")
+                    if c_type == "web":
+                        success, msg = open_application(c_action)
+                        return True, msg, "action"
+                    elif c_type == "ai_prompt":
+                        full_prompt = f"{c_action} {args}".strip()
+                        return False, full_prompt, "llm"
+                    else:  # action
+                        action_text = f"{c_action} {args}".strip() if args else c_action
+                        return self.route_text(action_text)
+
+            return True, f"Không tìm thấy lệnh '{cmd_name}'. Hãy gõ '/' để xem danh sách lệnh có sẵn.", "action"
+
+        # 5. System Volume & Audio Control (Bulletproof matching without false positives on 'nhạc')
         # Volume Up
         m_vol_up = re.search(r'(?:^|\s)(?:tăng|bật to)\s*(?:âm lượng|volume|âm thanh)?\s*(?:lên|thêm)?\s*(\d+)?|(?:^|\s)to lên', norm)
         if m_vol_up:

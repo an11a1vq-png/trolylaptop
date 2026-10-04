@@ -2,11 +2,14 @@ import os
 import yaml
 from datetime import datetime
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTextEdit, QLineEdit, QTabWidget, QGroupBox,
-    QComboBox, QCheckBox, QMessageBox
+    QComboBox, QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
 )
+from ui.slash_popup import SlashCommandPopup
+from core.command_manager import command_manager
 
 
 class DashboardWindow(QMainWindow):
@@ -123,6 +126,7 @@ class DashboardWindow(QMainWindow):
         # Tabs
         tabs = QTabWidget()
         tabs.addTab(self._create_history_tab(), "Lịch Sử Lệnh")
+        tabs.addTab(self._create_slash_commands_tab(), "Quản Lý Lệnh (/)")
         tabs.addTab(self._create_quick_actions_tab(), "Bảng Điều Khiển Nhanh")
         tabs.addTab(self._create_settings_tab(), "Cài Đặt & AI")
         main_layout.addWidget(tabs)
@@ -161,7 +165,7 @@ class DashboardWindow(QMainWindow):
         # Bottom Chat Bar
         chat_layout = QHBoxLayout()
         self.dashboard_chat_input = QLineEdit()
-        self.dashboard_chat_input.setPlaceholderText("💬 Nhập câu lệnh hoặc câu hỏi cho NOVA (Enter để gửi)...")
+        self.dashboard_chat_input.setPlaceholderText("💬 Nhập câu lệnh, câu hỏi, hoặc gõ '/' để xem danh sách lệnh...")
         self.dashboard_chat_input.returnPressed.connect(self._on_dashboard_chat_submit)
 
         send_btn = QPushButton("Gửi ↵")
@@ -169,6 +173,9 @@ class DashboardWindow(QMainWindow):
 
         chat_layout.addWidget(self.dashboard_chat_input)
         chat_layout.addWidget(send_btn)
+
+        # Attach Slash Command Popup
+        self.dashboard_slash_popup = SlashCommandPopup(self.dashboard_chat_input, parent=None)
 
         btn_layout = QHBoxLayout()
         clear_btn = QPushButton("Xóa lịch sử")
@@ -195,8 +202,182 @@ class DashboardWindow(QMainWindow):
     def _on_dashboard_chat_submit(self):
         text = self.dashboard_chat_input.text().strip()
         if text:
+            if hasattr(self, "dashboard_slash_popup"):
+                self.dashboard_slash_popup.hide()
             self.dashboard_chat_input.clear()
             self.trigger_text_command_signal.emit(text)
+
+    def hideEvent(self, event):
+        if hasattr(self, "dashboard_slash_popup"):
+            self.dashboard_slash_popup.hide()
+        super().hideEvent(event)
+
+    def _create_slash_commands_tab(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
+
+        header_lbl = QLabel("Danh Sách Lệnh Slash (/) & Huấn Luyện Lệnh Mới:")
+        header_lbl.setStyleSheet("font-weight: 700; color: #00F2FE; font-size: 14px;")
+        layout.addWidget(header_lbl)
+
+        # Table of Commands
+        self.cmd_table = QTableWidget()
+        self.cmd_table.setColumnCount(5)
+        self.cmd_table.setHorizontalHeaderLabels(["Icon", "Tên Lệnh", "Loại", "Mô Tả / Hành Động", "Thao Tác"])
+        self.cmd_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.cmd_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.cmd_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.cmd_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.cmd_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.cmd_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.cmd_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.cmd_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #12131D;
+                border: 1px solid rgba(0, 242, 254, 0.2);
+                border-radius: 8px;
+                gridline-color: rgba(255, 255, 255, 0.05);
+            }
+            QHeaderView::section {
+                background-color: #1A1C2C;
+                color: #00F2FE;
+                font-weight: 600;
+                padding: 6px;
+                border: none;
+            }
+        """)
+        layout.addWidget(self.cmd_table)
+
+        # Training Box
+        train_box = QGroupBox("➕ Huấn Luyện / Thêm Lệnh Mới")
+        train_layout = QVBoxLayout(train_box)
+        train_layout.setSpacing(8)
+
+        # Row 1: Name & Type
+        row1 = QHBoxLayout()
+        name_lbl = QLabel("Tên lệnh:")
+        self.new_cmd_name = QLineEdit()
+        self.new_cmd_name.setPlaceholderText("Ví dụ: /game hoặc /dich")
+
+        type_lbl = QLabel("Loại lệnh:")
+        self.new_cmd_type = QComboBox()
+        self.new_cmd_type.addItem("🎮 Hành động máy tính / Mở app", "action")
+        self.new_cmd_type.addItem("🧠 Prompt AI chuyên biệt", "ai_prompt")
+        self.new_cmd_type.addItem("🌐 Mở liên kết Web", "web")
+
+        row1.addWidget(name_lbl)
+        row1.addWidget(self.new_cmd_name)
+        row1.addWidget(type_lbl)
+        row1.addWidget(self.new_cmd_type)
+        train_layout.addLayout(row1)
+
+        # Row 2: Content / Action
+        row2 = QHBoxLayout()
+        action_lbl = QLabel("Hành động / Prompt:")
+        self.new_cmd_action = QLineEdit()
+        self.new_cmd_action.setPlaceholderText("Ví dụ: 'mở goose goose duck' HOẶC 'Dịch đoạn sau sang tiếng Anh:'")
+        row2.addWidget(action_lbl)
+        row2.addWidget(self.new_cmd_action)
+        train_layout.addLayout(row2)
+
+        # Row 3: Description & Save Button
+        row3 = QHBoxLayout()
+        desc_lbl = QLabel("Mô tả ngắn:")
+        self.new_cmd_desc = QLineEdit()
+        self.new_cmd_desc.setPlaceholderText("Mô tả hiển thị trong menu gợi ý...")
+
+        add_btn = QPushButton("💾 Lưu Lệnh Mới")
+        add_btn.clicked.connect(self._on_add_custom_command)
+
+        row3.addWidget(desc_lbl)
+        row3.addWidget(self.new_cmd_desc)
+        row3.addWidget(add_btn)
+        train_layout.addLayout(row3)
+
+        layout.addWidget(train_box)
+
+        # Load initial commands into table
+        self._reload_commands_table()
+        return widget
+
+    def _reload_commands_table(self):
+        commands = command_manager.get_all_commands()
+        self.cmd_table.setRowCount(len(commands))
+
+        for row, cmd in enumerate(commands):
+            icon_item = QTableWidgetItem(cmd.get("icon", "⚡"))
+            icon_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            name_item = QTableWidgetItem(cmd.get("name", ""))
+            name_item.setForeground(QColor("#00F2FE"))
+
+            is_custom = cmd.get("type") in ["ai_prompt", "web"] or bool(cmd.get("action_content"))
+            type_text = "Tùy chỉnh" if is_custom else "Hệ thống"
+            type_item = QTableWidgetItem(type_text)
+            if is_custom:
+                type_item.setForeground(QColor("#A78BFA"))
+
+            desc_item = QTableWidgetItem(cmd.get("desc", ""))
+
+            self.cmd_table.setItem(row, 0, icon_item)
+            self.cmd_table.setItem(row, 1, name_item)
+            self.cmd_table.setItem(row, 2, type_item)
+            self.cmd_table.setItem(row, 3, desc_item)
+
+            if is_custom:
+                del_btn = QPushButton("🗑 Xóa")
+                del_btn.setProperty("class", "secondary")
+                del_btn.setStyleSheet("padding: 3px 8px; font-size: 11px;")
+                cmd_name = cmd.get("name")
+                del_btn.clicked.connect(lambda checked, name=cmd_name: self._on_delete_custom_command(name))
+                self.cmd_table.setCellWidget(row, 4, del_btn)
+            else:
+                lock_item = QTableWidgetItem("Cố định")
+                lock_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                lock_item.setForeground(QColor("#7F8C8D"))
+                self.cmd_table.setItem(row, 4, lock_item)
+
+    def _on_add_custom_command(self):
+        name = self.new_cmd_name.text().strip()
+        action = self.new_cmd_action.text().strip()
+        desc = self.new_cmd_desc.text().strip()
+        cmd_type = self.new_cmd_type.currentData()
+
+        if not name:
+            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập tên lệnh (ví dụ: /game).")
+            return
+        if not action:
+            QMessageBox.warning(self, "Thiếu thông tin", "Vui lòng nhập hành động hoặc prompt cho lệnh.")
+            return
+
+        icon = "🎮" if cmd_type == "action" else ("🧠" if cmd_type == "ai_prompt" else "🌐")
+        success, msg = command_manager.add_custom_command(
+            name=name,
+            desc=desc or action,
+            cmd_type=cmd_type,
+            action_or_prompt=action,
+            icon=icon,
+            is_immediate=(cmd_type != "ai_prompt")
+        )
+        if success:
+            QMessageBox.information(self, "Thành công", msg)
+            self.new_cmd_name.clear()
+            self.new_cmd_action.clear()
+            self.new_cmd_desc.clear()
+            self._reload_commands_table()
+        else:
+            QMessageBox.warning(self, "Lỗi", msg)
+
+    def _on_delete_custom_command(self, name: str):
+        reply = QMessageBox.question(
+            self, "Xác nhận", f"Bạn có chắc muốn xóa lệnh '{name}' không?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            success, msg = command_manager.delete_custom_command(name)
+            self._reload_commands_table()
 
     def _create_quick_actions_tab(self) -> QWidget:
         widget = QWidget()

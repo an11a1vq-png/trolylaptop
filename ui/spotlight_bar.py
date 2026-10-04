@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel,
     QGraphicsDropShadowEffect, QPushButton
 )
+from ui.slash_popup import SlashCommandPopup
 
 
 class SpotlightBar(QWidget):
@@ -100,6 +101,9 @@ class SpotlightBar(QWidget):
         self.result_label.setStyleSheet("color: #7F8C8D; font-size: 13px; border: none; background: transparent; padding-left: 28px;")
         layout.addWidget(self.result_label)
 
+        # Slash Command Popup
+        self.slash_popup = SlashCommandPopup(self.input_field, parent=None)
+
     def _center_on_screen(self):
         screen = self.screen().geometry()
         x = (screen.width() - self.width()) // 2
@@ -111,11 +115,18 @@ class SpotlightBar(QWidget):
         self._center_on_screen()
         self.result_label.setText("Chế độ nhập lệnh im lặng (Không phát âm thanh qua loa)")
         self.result_label.setStyleSheet("color: #7F8C8D; font-size: 13px; border: none; background: transparent; padding-left: 28px;")
+        self.input_field.setPlaceholderText("Nhập lệnh, câu hỏi hoặc gõ '/' để xem danh sách lệnh...")
         self.input_field.clear()
         self.show()
         self.raise_()
         self.activateWindow()
         self.input_field.setFocus()
+
+    def hide(self):
+        """Hide Spotlight bar and close any open slash command popup."""
+        if hasattr(self, "slash_popup"):
+            self.slash_popup.hide()
+        super().hide()
 
     def show_result(self, text: str, auto_hide: bool = True):
         """Display command result or AI reply, with auto-hide for actions."""
@@ -134,6 +145,8 @@ class SpotlightBar(QWidget):
         text = self.input_field.text().strip()
         if not text:
             return
+        if hasattr(self, "slash_popup"):
+            self.slash_popup.hide()
         self.result_label.setText(f"Đang xử lý: \"{text}\"...")
         self.result_label.setStyleSheet("color: #E100FF; font-size: 13px; font-weight: 500; border: none; background: transparent; padding-left: 28px;")
         self.input_field.clear()

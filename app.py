@@ -186,10 +186,16 @@ class AssistantCoordinator(QObject):
     def _process_command(self, query: str, is_voice: bool = True, source: str = "voice"):
         self.log_message_signal.emit("User", query)
 
-        # 1. Route to Rule-Based / Dictation / Safety
+        # 1. Route to Rule-Based / Dictation / Safety / Slash Commands
         handled, result_text, action_type = self.router.route_text(query)
 
         if handled:
+            if action_type == "clear":
+                self.dashboard._on_clear_history()
+                if source == "spotlight":
+                    self.spotlight.show_result("Đã xóa sạch lịch sử trò chuyện.", auto_hide=True)
+                return
+
             if is_voice:
                 self.show_response_signal.emit(result_text)
                 self.tts.play_sound_effect(self.beep_done)
