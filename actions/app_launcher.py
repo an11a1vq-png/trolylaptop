@@ -74,6 +74,8 @@ def clean_target_name(name: str) -> str:
     cleaned = re.sub(r"^(?:hãy\s+|làm ơn\s+|cho tôi\s+|cho mình\s+|giúp tôi\s+|giùm tôi\s+|hộ tôi\s+|hộ mình\s+|vui lòng\s+)", "", cleaned)
     # Remove app/web prefix fillers
     cleaned = re.sub(r"^(?:trang web\s+|trang\s+|web\s+|website\s+|ứng dụng\s+|phần mềm\s+|app\s+)", "", cleaned)
+    # Remove trailing platform references
+    cleaned = re.sub(r"\s+(?:trên|qua|ở|tại|bằng|on)\s+(?:youtube|google|web|mạng)$", "", cleaned, flags=re.IGNORECASE)
     # Remove trailing words
     cleaned = re.sub(r"\s+(?:lên|đi|giùm|hộ|nào)$", "", cleaned)
     return cleaned.strip()
@@ -175,7 +177,9 @@ def _open_url(url: str, label: str, specific_browser: Optional[str] = None) -> T
 def search_google(query: str, specific_browser: Optional[str] = None) -> Tuple[bool, str]:
     """Search Google with clean query."""
     clean_q = query.strip()
-    clean_q = re.sub(r"^(?:về|cho tôi|giùm tôi|thông tin về)\s+", "", clean_q)
+    clean_q = re.sub(r"\s+(?:trên|qua|ở|tại|bằng|on)\s+(?:google|youtube|web|mạng)$", "", clean_q, flags=re.IGNORECASE)
+    clean_q = re.sub(r"^(?:thông tin về|về|cho tôi|giùm tôi)\s+", "", clean_q, flags=re.IGNORECASE)
+    clean_q = clean_q.strip()
     if not clean_q:
         return False, "Nội dung tìm kiếm trống"
     url = f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_q)}"
@@ -185,7 +189,9 @@ def search_google(query: str, specific_browser: Optional[str] = None) -> Tuple[b
 def search_youtube(query: str, specific_browser: Optional[str] = None) -> Tuple[bool, str]:
     """Search YouTube with clean query."""
     clean_q = query.strip()
-    clean_q = re.sub(r"^(?:bài hát|video|clip|về|cho tôi)\s+", "", clean_q)
+    clean_q = re.sub(r"\s+(?:trên|qua|ở|tại|bằng|on)\s+(?:youtube|google|web|mạng)$", "", clean_q, flags=re.IGNORECASE)
+    clean_q = re.sub(r"^(?:bài hát|bản nhạc|ca khúc|bài|video|clip|kênh|về|cho tôi)\s+", "", clean_q, flags=re.IGNORECASE)
+    clean_q = clean_q.strip()
     if not clean_q:
         return False, "Nội dung tìm kiếm trống"
     url = f"https://www.youtube.com/results?search_query={urllib.parse.quote_plus(clean_q)}"

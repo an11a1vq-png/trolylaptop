@@ -123,15 +123,17 @@ class IntentRouter:
             return True, msg, "action"
 
         # 4. Search Commands
-        # Flexible Pattern 1: Search [query] on [engine] ("tìm nhạc lofi trên youtube", "tìm thời tiết trên google")
-        search_target_match = re.search(r"^(?:tìm kiếm|tìm|search|tra cứu)\s+(.+?)\s+(?:trên|qua|ở|bằng|on)\s+(youtube|google)$", norm)
+        # Flexible Pattern 1: Search [query] on [engine] ("mở bài lưu niên trên youtube", "tìm nhạc lofi trên youtube", "tìm thời tiết trên google")
+        search_target_match = re.search(r"^(?:tìm kiếm|tìm|search|tra cứu|mở|bật|xem|phát)\s+(.+?)\s+(?:trên|qua|ở|tại|on)\s+(youtube|google)$", norm)
         if search_target_match:
-            query = search_target_match.group(1).strip()
+            raw_query = search_target_match.group(1).strip()
             engine = search_target_match.group(2).strip()
             if engine == "youtube":
-                success, msg = search_youtube(query)
+                clean_query = re.sub(r"^(?:bài hát|bản nhạc|ca khúc|bài|video|clip|kênh)\s+", "", raw_query, flags=re.IGNORECASE).strip()
+                success, msg = search_youtube(clean_query)
             else:
-                success, msg = search_google(query)
+                clean_query = re.sub(r"^(?:thông tin về|về)\s+", "", raw_query, flags=re.IGNORECASE).strip()
+                success, msg = search_google(clean_query)
             return True, msg, "action"
 
         # Flexible Pattern 2: Search Google ("tìm kiếm google [query]", "tìm google [query]", "tra google [query]")
@@ -148,18 +150,20 @@ class IntentRouter:
             success, msg = search_youtube(query)
             return True, msg, "action"
 
-        # 5. Media / Music / Video Playback (e.g. 'mở bài lưu niên', 'nghe nhạc lofi', 'bật bài hát abc', 'xem clip hài')
-        media_match = re.search(r"^(?:mở|bật|nghe|phát|chơi|xem)\s+(bài hát|bản nhạc|ca khúc|bài|nhạc|video|clip|phim)\s+(.+)|^nghe\s+(.+)", norm)
+        # 5. Media / Music / Video Playback (e.g. 'mở bài lưu niên', 'nghe nhạc lofi', 'bật bài hát abc', 'xem clip hài', 'mở kênh phd troll')
+        media_match = re.search(r"^(?:mở|bật|nghe|phát|chơi|xem)\s+(bài hát|bản nhạc|ca khúc|bài|nhạc|video|clip|phim|kênh)\s+(.+)|^nghe\s+(.+)", norm)
         if media_match:
             if media_match.group(1):
                 kw = media_match.group(1).strip()
                 rest = media_match.group(2).strip()
-                if kw in ["nhạc", "phim", "video", "clip"]:
+                rest = re.sub(r"\s+(?:trên|qua|ở|tại|on)\s+(?:youtube|google|web|mạng)$", "", rest, flags=re.IGNORECASE).strip()
+                if kw in ["nhạc", "phim", "video", "clip", "kênh"]:
                     song_or_video = f"{kw} {rest}"
                 else:
                     song_or_video = rest
             else:
                 song_or_video = media_match.group(3).strip()
+                song_or_video = re.sub(r"\s+(?:trên|qua|ở|tại|on)\s+(?:youtube|google|web|mạng)$", "", song_or_video, flags=re.IGNORECASE).strip()
 
             # Check if user specified a browser (e.g. 'mở bài lưu niên bằng chrome')
             browser_match = re.search(r"^(.*?)\s+(?:bằng|qua|trên|với|in|with)\s+(chrome|cốc cốc|coc coc|edge|firefox)$", song_or_video)

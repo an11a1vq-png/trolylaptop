@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QTimer, QEvent
 from PyQt6.QtGui import QColor, QFont, QKeyEvent
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel,
@@ -117,10 +117,18 @@ class SpotlightBar(QWidget):
         self.activateWindow()
         self.input_field.setFocus()
 
-    def show_result(self, text: str):
-        """Display command result or AI reply."""
+    def show_result(self, text: str, auto_hide: bool = True):
+        """Display command result or AI reply, with auto-hide for actions."""
         self.result_label.setText(text)
         self.result_label.setStyleSheet("color: #00F2FE; font-size: 13px; font-weight: 500; border: none; background: transparent; padding-left: 28px;")
+        if auto_hide:
+            QTimer.singleShot(1500, self.hide)
+
+    def changeEvent(self, event):
+        """Hide Spotlight bar when clicking outside or switching to another window."""
+        if event.type() == QEvent.Type.ActivationChange and not self.isActiveWindow():
+            self.hide()
+        super().changeEvent(event)
 
     def _on_submit(self):
         text = self.input_field.text().strip()

@@ -197,7 +197,7 @@ class AssistantCoordinator(QObject):
             else:
                 # Silent mode for typed text commands
                 if source == "spotlight":
-                    self.spotlight.show_result(result_text)
+                    self.spotlight.show_result(result_text, auto_hide=True)
             self.log_message_signal.emit("Assistant", result_text)
         else:
             # 2. Free Conversational Query -> Hybrid Brain
@@ -209,10 +209,10 @@ class AssistantCoordinator(QObject):
             else:
                 # Silent mode for typed text commands
                 if source == "spotlight":
-                    self.spotlight.show_result("Đang suy luận...")
+                    self.spotlight.show_result("Đang suy luận...", auto_hide=False)
                 ai_reply = self.brain.think_and_reply(query)
                 if source == "spotlight":
-                    self.spotlight.show_result(ai_reply)
+                    self.spotlight.show_result(ai_reply, auto_hide=False)
 
             self.log_message_signal.emit("Assistant", ai_reply)
 
