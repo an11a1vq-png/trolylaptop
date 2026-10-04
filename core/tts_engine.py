@@ -3,6 +3,7 @@ os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import asyncio
 import threading
 import tempfile
+import re
 from typing import Optional
 
 try:
@@ -69,10 +70,23 @@ class TTSEngine:
 
     def speak(self, text: str, callback_on_finish=None):
         """Speak the given text asynchronously with instant interruption capability."""
-        if not text.strip():
+        if not text or not text.strip():
             return
+        
+        # Clean text for TTS: remove code blocks, URLs, and Markdown symbols
+        clean_text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+        clean_text = re.sub(r'https?://\S+', '', clean_text)
+        clean_text = re.sub(r'[*_`#~\[\]<>\\]', '', clean_text)
+        clean_text = clean_text.strip()
+
+        # Ensure there is actual word/alphanumeric content to pronounce (avoids Edge-TTS NoAudioReceived error)
+        if not re.search(r'\w', clean_text):
+            if callback_on_finish:
+                callback_on_finish()
+            return
+
         self.stop_requested = False
-        threading.Thread(target=self._speak_worker, args=(text, callback_on_finish), daemon=True).start()
+        threading.Thread(target=self._speak_worker, args=(clean_text, callback_on_finish), daemon=True).start()
 
     def _speak_worker(self, text: str, callback_on_finish):
         self.is_speaking = True

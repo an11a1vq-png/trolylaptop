@@ -1,52 +1,45 @@
-# Configuration for Hey Google Assistant (Windows)
-
-general:
-  assistant_name: "NOVA"
-  language_mode: "vi"          # Khóa tiếng Việt thuần túy
-  activation_mode: "hotkey_only" # "hotkey_only" (Chỉ nghe khi bấm Ctrl+Space, 0% CPU, không lo tiếng ồn)
-  wake_words:
-    - "hey nova"
-    - "nova ơi"
-    - "nova"
-    - "ê nova"
-  activation_hotkey: "ctrl+space"        # Phím tắt kích hoạt giọng nói
-  text_activation_hotkey: "ctrl+shift+space" # Phím tắt mở thanh gõ lệnh nổi Spotlight
-  sound_effects: true                    # Âm thanh beep khi kích hoạt
-
-speech_recognition:
-  model_size: "tiny"           # "tiny", "base" (chạy nhanh trên CPU i5)
-  language: "vi"               # Cố định tiếng Việt, loại bỏ 100% tiếng Trung/Ấn
-  device: "cpu"
-  compute_type: "int8"         # Tối ưu hóa CPU
-  silence_duration_seconds: 0.9 # Dừng nói 0.9s là xử lý ngay
-  energy_threshold: 800
-
-intelligence:
-  engine_mode: "hybrid"        # "hybrid", "offline_only", "online_only"
-  ollama:
-    base_url: "http://localhost:11434"
-    model: "qwen2.5:3b"        # Mô hình 3B thông minh và hiểu tiếng Việt sâu sắc
-    timeout_seconds: 25
-  gemini:
-    api_key: ""                # Điền API key nếu muốn kích hoạt Google Gemini Cloud
-    model: "gemini-2.5-flash"
-
-text_to_speech:
-  online_voice_vi: "vi-VN-HoaiMyNeural"    # Edge-TTS
-  online_voice_en: "en-US-JennyNeural"
-  rate: "+0%"
-  volume: "+0%"
-  prefer_online: true          # Tự động dùng Edge-TTS khi có mạng, offline dùng pyttsx3
-
-safety:
-  confirm_shutdown: true       # Xác nhận trước khi tắt máy
-  confirm_restart: true        # Xác nhận trước khi khởi động lại
-  confirm_scripts: true        # Xác nhận trước khi chạy script tự động
-
 custom_apps:
-  chrome: "chrome.exe"
-  spotify: "spotify.exe"
-  notepad: "notepad.exe"
-  explorer: "explorer.exe"
-  vscode: "code"
-  calculator: "calc.exe"
+  calculator: calc.exe
+  chrome: chrome.exe
+  explorer: explorer.exe
+  notepad: notepad.exe
+  spotify: spotify.exe
+  vscode: code
+general:
+  activation_hotkey: ctrl+space
+  activation_mode: hotkey_only
+  assistant_name: NOVA
+  language_mode: vi
+  sound_effects: true
+  text_activation_hotkey: ctrl+shift+space
+  wake_words:
+  - hey nova
+  - nova ơi
+  - nova
+  - ê nova
+intelligence:
+  engine_mode: hybrid
+  gemini:
+    api_key: ""
+    model: gemini-2.5-flash
+  ollama:
+    base_url: http://localhost:11434
+    model: qwen2.5:3b
+    timeout_seconds: 25
+safety:
+  confirm_restart: true
+  confirm_scripts: true
+  confirm_shutdown: true
+speech_recognition:
+  compute_type: int8
+  device: cpu
+  energy_threshold: 800
+  language: vi
+  model_size: tiny
+  silence_duration_seconds: 0.9
+text_to_speech:
+  online_voice_en: en-US-JennyNeural
+  online_voice_vi: vi-VN-HoaiMyNeural
+  prefer_online: true
+  rate: +0%
+  volume: +0%

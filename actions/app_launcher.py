@@ -1,8 +1,10 @@
 import os
+import shutil
 import subprocess
 import urllib.parse
 import webbrowser
 import re
+import winreg
 from typing import Tuple, Optional
 
 APP_ALIASES = {
@@ -77,6 +79,35 @@ def clean_target_name(name: str) -> str:
     return cleaned.strip()
 
 
+def _find_app_path(target: str) -> Optional[str]:
+    """Find absolute path of an application via filesystem, PATH, or Windows Registry."""
+    # 1. Full path exists
+    if os.path.exists(target):
+        return target
+
+    # 2. Check PATH with PATHEXT
+    w = shutil.which(target)
+    if w:
+        return w
+    if not target.endswith((".exe", ".cmd", ".bat")):
+        w = shutil.which(f"{target}.exe")
+        if w:
+            return w
+
+    # 3. Check Windows Registry App Paths (HKCU and HKLM)
+    for root in [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]:
+        for subkey in [f"{target}.exe", target]:
+            try:
+                key_path = f"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{subkey}"
+                with winreg.OpenKey(root, key_path) as k:
+                    val, _ = winreg.QueryValueEx(k, "")
+                    if val and os.path.exists(val):
+                        return val
+            except OSError:
+                pass
+    return None
+
+
 def open_application(app_name: str, specific_browser: Optional[str] = None) -> Tuple[bool, str]:
     """Launch an application or web service by name with smart resolution."""
     raw_name = clean_target_name(app_name)
@@ -95,8 +126,11 @@ def open_application(app_name: str, specific_browser: Optional[str] = None) -> T
 
     # 2. Windows Settings URI
     if target.startswith("ms-settings:"):
-        os.system(f"start {target}")
-        return True, "Đang mở Cài đặt Windows"
+        try:
+            os.startfile(target)
+            return True, "Đang mở Cài đặt Windows"
+        except Exception as e:
+            return False, f"Không thể mở Cài đặt: {e}"
 
     # 3. Known web domain pattern (e.g. 'nhaccuatui.com' or single known word)
     if "." in raw_name and not raw_name.endswith((".exe", ".bat", ".cmd", ".ps1")):
@@ -104,12 +138,24 @@ def open_application(app_name: str, specific_browser: Optional[str] = None) -> T
         return _open_url(url, raw_name, specific_browser)
 
     # 4. Desktop Application Executable
+    resolved = _find_app_path(target)
+    if resolved:
+        try:
+            os.startfile(resolved)
+            return True, f"Đang mở {raw_name}"
+        except Exception as e:
+            return False, f"Lỗi khi mở {raw_name}: {e}"
+
+    # Try direct startfile for shell URIs or special handlers
     try:
-        subprocess.Popen(f'start "" "{target}"', shell=True)
+        os.startfile(target)
         return True, f"Đang mở {raw_name}"
-    except Exception as e:
-        # Fallback to searching or opening as website
-        return False, f"Không thể mở {raw_name}: {e}"
+    except (FileNotFoundError, OSError):
+        pass
+
+    # 5. Fallback: Not a known app or file -> search Google smoothly without OS popups!
+    search_google(raw_name, specific_browser)
+    return True, f"Không tìm thấy ứng dụng '{raw_name}', đang tìm kiếm trên Google..."
 
 
 def _open_url(url: str, label: str, specific_browser: Optional[str] = None) -> Tuple[bool, str]:

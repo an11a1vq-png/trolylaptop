@@ -3,7 +3,8 @@ from typing import Tuple, Optional
 
 from actions.system_controls import (
     set_volume, change_volume, toggle_mute, lock_screen,
-    shutdown_computer, restart_computer, cancel_shutdown
+    shutdown_computer, restart_computer, cancel_shutdown,
+    media_play_pause, media_next, media_previous
 )
 from actions.app_launcher import (
     open_application, search_google, search_youtube
@@ -108,6 +109,19 @@ class IntentRouter:
             success, msg = toggle_mute()
             return True, msg, "action"
 
+        # Media Playback Controls (Play / Pause / Next / Prev)
+        if any(k in norm for k in ["tạm dừng", "dừng nhạc", "dừng video", "tiếp tục phát", "phát tiếp", "pause video", "play video", "dừng bài"]):
+            success, msg = media_play_pause()
+            return True, msg, "action"
+
+        if any(k in norm for k in ["chuyển bài", "bài tiếp theo", "next bài", "bài kế tiếp", "qua bài"]):
+            success, msg = media_next()
+            return True, msg, "action"
+
+        if any(k in norm for k in ["bài trước", "lùi bài", "quay lại bài trước", "previous bài"]):
+            success, msg = media_previous()
+            return True, msg, "action"
+
         # 4. Search Commands
         # Flexible Pattern 1: Search [query] on [engine] ("tìm nhạc lofi trên youtube", "tìm thời tiết trên google")
         search_target_match = re.search(r"^(?:tìm kiếm|tìm|search|tra cứu)\s+(.+?)\s+(?:trên|qua|ở|bằng|on)\s+(youtube|google)$", norm)
@@ -134,7 +148,29 @@ class IntentRouter:
             success, msg = search_youtube(query)
             return True, msg, "action"
 
-        # 5. Open Applications / Websites / Folders
+        # 5. Media / Music / Video Playback (e.g. 'mở bài lưu niên', 'nghe nhạc lofi', 'bật bài hát abc', 'xem clip hài')
+        media_match = re.search(r"^(?:mở|bật|nghe|phát|chơi|xem)\s+(bài hát|bản nhạc|ca khúc|bài|nhạc|video|clip|phim)\s+(.+)|^nghe\s+(.+)", norm)
+        if media_match:
+            if media_match.group(1):
+                kw = media_match.group(1).strip()
+                rest = media_match.group(2).strip()
+                if kw in ["nhạc", "phim", "video", "clip"]:
+                    song_or_video = f"{kw} {rest}"
+                else:
+                    song_or_video = rest
+            else:
+                song_or_video = media_match.group(3).strip()
+
+            # Check if user specified a browser (e.g. 'mở bài lưu niên bằng chrome')
+            browser_match = re.search(r"^(.*?)\s+(?:bằng|qua|trên|với|in|with)\s+(chrome|cốc cốc|coc coc|edge|firefox)$", song_or_video)
+            specific_browser = None
+            if browser_match:
+                song_or_video = browser_match.group(1).strip()
+                specific_browser = browser_match.group(2).strip()
+            success, msg = search_youtube(song_or_video, specific_browser=specific_browser)
+            return True, msg, "action"
+
+        # 6. Open Applications / Websites / Folders
         # Supports verbs: mở, bật, khởi động, chạy, vào, truy cập, open, launch
         open_match = re.search(r"^(?:mở|bật|khởi động|chạy|vào|truy cập|open|launch)\s+(.+)", norm)
         if open_match:

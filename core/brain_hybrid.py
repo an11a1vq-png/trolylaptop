@@ -24,6 +24,19 @@ class HybridBrain:
         self.gemini_cfg = self.intel_cfg.get("gemini", {})
         self.mode = self.intel_cfg.get("engine_mode", "hybrid")
 
+        # Load local .env secrets if present
+        env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+        if os.path.exists(env_file):
+            try:
+                with open(env_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            os.environ[k.strip()] = v.strip()
+            except Exception:
+                pass
+
         # Multi-turn Conversation Memory (stores last N turns)
         self.history: List[Dict[str, str]] = []
         self.max_history_turns = 8  # 8 turns = 16 messages
@@ -62,7 +75,7 @@ class HybridBrain:
             return f"Máy tính của bạn đang chạy hệ điều hành {platform.system()} {platform.release()}, vi xử lý {platform.processor()}."
 
         # 2. Try Cloud Gemini API if key is provided and mode allows
-        gemini_key = self.gemini_cfg.get("api_key", "").strip()
+        gemini_key = (self.gemini_cfg.get("api_key", "") or os.environ.get("GEMINI_API_KEY", "")).strip()
         if gemini_key and self.mode in ["hybrid", "online_only"]:
             reply = self._query_gemini(user_query, gemini_key)
             if reply:

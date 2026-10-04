@@ -10,18 +10,40 @@ try:
 except Exception:
     PYCAW_AVAILABLE = False
 
-# Windows Virtual Key Codes for Hardware Audio Control
+# Windows Virtual Key Codes for Hardware Audio & Media Control
 VK_VOLUME_MUTE = 0xAD
 VK_VOLUME_DOWN = 0xAE
 VK_VOLUME_UP = 0xAF
+VK_MEDIA_NEXT_TRACK = 0xB0
+VK_MEDIA_PREV_TRACK = 0xB1
+VK_MEDIA_STOP = 0xB2
+VK_MEDIA_PLAY_PAUSE = 0xB3
 KEYEVENTF_KEYUP = 0x0002
 
 
 def _send_virtual_key(vk_code: int, times: int = 1):
-    """Press Windows virtual volume hardware key directly."""
+    """Press Windows virtual hardware key directly."""
     for _ in range(max(1, times)):
         ctypes.windll.user32.keybd_event(vk_code, 0, 0, 0)
         ctypes.windll.user32.keybd_event(vk_code, 0, KEYEVENTF_KEYUP, 0)
+
+
+def media_play_pause() -> Tuple[bool, str]:
+    """Toggle Play / Pause for active media (YouTube, Spotify, etc.)."""
+    _send_virtual_key(VK_MEDIA_PLAY_PAUSE)
+    return True, "Đã tạm dừng hoặc tiếp tục phát"
+
+
+def media_next() -> Tuple[bool, str]:
+    """Next track."""
+    _send_virtual_key(VK_MEDIA_NEXT_TRACK)
+    return True, "Đã chuyển sang bài tiếp theo"
+
+
+def media_previous() -> Tuple[bool, str]:
+    """Previous track."""
+    _send_virtual_key(VK_MEDIA_PREV_TRACK)
+    return True, "Đã quay lại bài trước"
 
 
 def _get_audio_endpoint():
