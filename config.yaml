@@ -9,8 +9,9 @@ general:
     - "nova ơi"
     - "nova"
     - "ê nova"
-  activation_hotkey: "ctrl+space"   # Phím tắt toàn cục
-  sound_effects: true               # Âm thanh beep khi kích hoạt
+  activation_hotkey: "ctrl+space"        # Phím tắt kích hoạt giọng nói
+  text_activation_hotkey: "ctrl+shift+space" # Phím tắt mở thanh gõ lệnh nổi Spotlight
+  sound_effects: true                    # Âm thanh beep khi kích hoạt
 
 speech_recognition:
   model_size: "tiny"           # "tiny", "base" (chạy nhanh trên CPU i5)

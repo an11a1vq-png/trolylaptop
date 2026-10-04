@@ -41,6 +41,7 @@ def create_nova_icon() -> QIcon:
 class AssistantTrayIcon(QSystemTrayIcon):
     open_dashboard_signal = pyqtSignal()
     trigger_listen_signal = pyqtSignal()
+    trigger_spotlight_signal = pyqtSignal()
     quit_signal = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -83,8 +84,12 @@ class AssistantTrayIcon(QSystemTrayIcon):
         action_listen = QAction("🎤 Lắng Nghe Ngay (Ctrl + Space)", self)
         action_listen.triggered.connect(self.trigger_listen_signal.emit)
 
+        action_spotlight = QAction("💬 Gõ Lệnh Nổi (Ctrl + Shift + Space)", self)
+        action_spotlight.triggered.connect(self.trigger_spotlight_signal.emit)
+
         menu.addAction(action_dashboard)
         menu.addAction(action_listen)
+        menu.addAction(action_spotlight)
         menu.addSeparator()
 
         action_quit = QAction("❌ Thoát NOVA", self)

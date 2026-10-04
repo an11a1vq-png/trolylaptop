@@ -32,6 +32,7 @@ from core.wake_word import WakeWordDetector
 from ui.overlay_widget import FloatingOverlayWidget
 from ui.dashboard_window import DashboardWindow
 from ui.tray_icon import AssistantTrayIcon
+from ui.spotlight_bar import SpotlightBar
 
 
 class AssistantCoordinator(QObject):
@@ -39,6 +40,7 @@ class AssistantCoordinator(QObject):
     show_listening_signal = pyqtSignal()
     show_thinking_signal = pyqtSignal(str)
     show_response_signal = pyqtSignal(str)
+    show_spotlight_signal = pyqtSignal()
     log_message_signal = pyqtSignal(str, str)
 
     def __init__(self, config_path: str):
@@ -61,24 +63,35 @@ class AssistantCoordinator(QObject):
         self.overlay = FloatingOverlayWidget()
         self.dashboard = DashboardWindow(self.config, self.config_path)
         self.tray = AssistantTrayIcon()
+        self.spotlight = SpotlightBar()
 
         # Connect GUI Signals
         self.show_listening_signal.connect(self.overlay.show_listening)
         self.show_thinking_signal.connect(self.overlay.show_thinking)
         self.show_response_signal.connect(self.overlay.show_response)
+        self.show_spotlight_signal.connect(self.spotlight.show_spotlight)
         self.log_message_signal.connect(self.dashboard.add_log)
 
         # Connect Tray & Dashboard events
         self.tray.open_dashboard_signal.connect(self.dashboard.show)
         self.tray.trigger_listen_signal.connect(self._on_hotkey_activated)
+        self.tray.trigger_spotlight_signal.connect(self.spotlight.show_spotlight)
         self.tray.quit_signal.connect(self.shutdown)
 
         self.dashboard.trigger_action_signal.connect(self._on_dashboard_trigger)
+        self.dashboard.trigger_text_command_signal.connect(self._on_dashboard_text_submit)
         self.dashboard.save_config_signal.connect(self._on_config_updated)
 
-        # Audio & Wake Word
+        # Connect Spotlight Bar
+        self.spotlight.submit_command_signal.connect(self._on_spotlight_submit)
+
+        # Audio & Wake Word (Both Voice Hotkey & Spotlight Text Hotkey)
         self.listener = AudioListener(self.config, on_speech_recorded=self._on_speech_recorded)
-        self.wake_detector = WakeWordDetector(self.config, on_activation=self._on_hotkey_activated)
+        self.wake_detector = WakeWordDetector(
+            self.config,
+            on_activation=self._on_hotkey_activated,
+            on_text_activation=self._on_text_hotkey_activated
+        )
 
         # State
         self.is_waiting_direct_command = False
@@ -98,19 +111,31 @@ class AssistantCoordinator(QObject):
         # Preload STT in background thread to avoid GUI freeze
         threading.Thread(target=self.stt.load_model, daemon=True).start()
 
-        # Start microphone listener and hotkey
+        # Start microphone listener and hotkeys
         self.listener.start()
         self.wake_detector.start_hotkey_listener()
 
         self.log_message_signal.emit("System", "⚡ Hệ thống trợ lý AI NOVA đã sẵn sàng hoạt động!")
 
     def _on_hotkey_activated(self, source: str = "hotkey"):
-        """Called when Ctrl + Space is pressed or triggered from UI."""
+        """Called when Ctrl + Space is pressed (Voice Mode)."""
         self.tts.stop()  # Ngắt lời tức thì nếu AI đang nói
         self.is_waiting_direct_command = True
         self.listener.trigger_hotkey_listen()
         self.tts.play_sound_effect(self.beep_listen)
         self.show_listening_signal.emit()
+
+    def _on_text_hotkey_activated(self):
+        """Called when Ctrl + Shift + Space is pressed (Spotlight Bar)."""
+        self.show_spotlight_signal.emit()
+
+    def _on_spotlight_submit(self, text: str):
+        """Command submitted from floating Spotlight bar."""
+        threading.Thread(target=self._process_command, args=(text,), kwargs={"is_voice": False, "source": "spotlight"}, daemon=True).start()
+
+    def _on_dashboard_text_submit(self, text: str):
+        """Command submitted from Dashboard text chat box."""
+        threading.Thread(target=self._process_command, args=(text,), kwargs={"is_voice": False, "source": "dashboard"}, daemon=True).start()
 
     def _on_dashboard_trigger(self, action_text: str):
         if action_text == "hotkey":
@@ -122,7 +147,7 @@ class AssistantCoordinator(QObject):
             self.tts.speak(msg)
             self.log_message_signal.emit("Assistant", msg)
         else:
-            self._process_command(action_text)
+            threading.Thread(target=self._process_command, args=(action_text,), kwargs={"is_voice": True, "source": "dashboard_button"}, daemon=True).start()
 
     def _on_config_updated(self, new_config: dict):
         self.config = new_config
@@ -154,27 +179,40 @@ class AssistantCoordinator(QObject):
         command_to_run = clean_cmd if (is_wake and clean_cmd) else text
 
         self.show_thinking_signal.emit(command_to_run)
-        self._process_command(command_to_run)
+        self._process_command(command_to_run, is_voice=True, source="voice")
 
-    def _process_command(self, query: str):
+    def _process_command(self, query: str, is_voice: bool = True, source: str = "voice"):
         self.log_message_signal.emit("User", query)
 
         # 1. Route to Rule-Based / Dictation / Safety
         handled, result_text, action_type = self.router.route_text(query)
 
         if handled:
-            # Rule executed or safety confirmation requested
-            self.show_response_signal.emit(result_text)
+            if is_voice:
+                self.show_response_signal.emit(result_text)
+                self.tts.play_sound_effect(self.beep_done)
+                self.tts.speak(result_text)
+            else:
+                # Silent mode for typed text commands
+                if source == "spotlight":
+                    self.spotlight.show_result(result_text)
             self.log_message_signal.emit("Assistant", result_text)
-            self.tts.play_sound_effect(self.beep_done)
-            self.tts.speak(result_text)
         else:
             # 2. Free Conversational Query -> Hybrid Brain
-            self.show_thinking_signal.emit("Đang suy luận...")
-            ai_reply = self.brain.think_and_reply(query)
-            self.show_response_signal.emit(ai_reply)
+            if is_voice:
+                self.show_thinking_signal.emit("Đang suy luận...")
+                ai_reply = self.brain.think_and_reply(query)
+                self.show_response_signal.emit(ai_reply)
+                self.tts.speak(ai_reply)
+            else:
+                # Silent mode for typed text commands
+                if source == "spotlight":
+                    self.spotlight.show_result("Đang suy luận...")
+                ai_reply = self.brain.think_and_reply(query)
+                if source == "spotlight":
+                    self.spotlight.show_result(ai_reply)
+
             self.log_message_signal.emit("Assistant", ai_reply)
-            self.tts.speak(ai_reply)
 
     def shutdown(self):
         print("[Assistant] Đang dừng tất cả dịch vụ...")

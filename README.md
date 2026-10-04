@@ -19,13 +19,19 @@ Khi khởi động:
 
 ---
 
-## 🎙️ 2. Kích Hoạt & Gọi NOVA
+## 🎙️ 2. Kích Hoạt & Ra Lệnh Cho NOVA
 
-- **Kích hoạt bằng giọng nói (Hands-free):**
-  - Nói: *"Hey Nova"*, *"Nova ơi"*, *"Nova"*, hoặc *"Ê Nova"*.
-  - Có thể ra lệnh liền mạch: ví dụ *"Hey Nova mở Chrome"* hoặc chỉ gọi *"Nova ơi"* rồi chờ âm hiệu vũ trụ vang lên để nói lệnh.
-- **Kích hoạt bằng phím tắt:**
-  - Nhấn tổ hợp phím: `Ctrl + Space` (có thể tùy chỉnh lại trong Cài đặt).
+- **Cách 1: Ra lệnh bằng giọng nói (Voice Mode):**
+  - Nói từ khóa: *"Hey Nova"*, *"Nova ơi"*, *"Nova"*, hoặc *"Ê Nova"*.
+  - Hoặc bấm phím tắt: **`Ctrl + Space`** để kích hoạt micro ngay lập tức.
+- **Cách 2: Gõ lệnh im lặng dạng Spotlight (Spotlight Quick Bar):**
+  - Nhấn tổ hợp phím: **`Ctrl + Shift + Space`** (hoặc nhấp phải biểu tượng Khay hệ thống -> chọn *Gõ Lệnh Nổi*).
+  - Một thanh tìm kiếm phong cách Spotlight / Raycast sẽ xuất hiện giữa màn hình.
+  - Bạn gõ bất kỳ câu lệnh nào (ví dụ: *mở chrome, tăng âm lượng, chụp màn hình, AI là gì...*) rồi nhấn **`Enter`**.
+  - **Chế độ Im Lặng:** Trợ lý sẽ hiển thị kết quả bằng chữ ngay trên thanh mà **không phát âm thanh qua loa**, cực kỳ tiện lợi khi làm việc ban đêm hoặc trong văn phòng!
+  - Nhấn phím **`Esc`** để đóng thanh gõ lệnh.
+- **Cách 3: Khung chat trong Bảng Điều Khiển (Dashboard):**
+  - Mở tab **Lịch Sử Lệnh** trên Dashboard, gõ lệnh vào thanh chat dưới đáy và bấm **Gửi ↵**.
 
 ---
 

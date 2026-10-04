@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 class DashboardWindow(QMainWindow):
     # Signals to communicate with core
     trigger_action_signal = pyqtSignal(str)
+    trigger_text_command_signal = pyqtSignal(str)
     save_config_signal = pyqtSignal(dict)
 
     def __init__(self, config: dict, config_path: str):
@@ -130,11 +131,24 @@ class DashboardWindow(QMainWindow):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
-        info_label = QLabel("Nhật ký nhận diện giọng nói và phản hồi của trợ lý:")
+        info_label = QLabel("Nhật ký đàm thoại & Thanh gõ lệnh trực tiếp:")
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setPlaceholderText("Các câu lệnh nhận dạng và thao tác thực thi sẽ hiển thị tại đây...")
+
+        # Bottom Chat Bar
+        chat_layout = QHBoxLayout()
+        self.dashboard_chat_input = QLineEdit()
+        self.dashboard_chat_input.setPlaceholderText("💬 Nhập câu lệnh hoặc câu hỏi cho NOVA (Enter để gửi)...")
+        self.dashboard_chat_input.returnPressed.connect(self._on_dashboard_chat_submit)
+
+        send_btn = QPushButton("Gửi ↵")
+        send_btn.clicked.connect(self._on_dashboard_chat_submit)
+
+        chat_layout.addWidget(self.dashboard_chat_input)
+        chat_layout.addWidget(send_btn)
 
         btn_layout = QHBoxLayout()
         clear_btn = QPushButton("Xóa lịch sử")
@@ -145,8 +159,15 @@ class DashboardWindow(QMainWindow):
 
         layout.addWidget(info_label)
         layout.addWidget(self.log_text)
+        layout.addLayout(chat_layout)
         layout.addLayout(btn_layout)
         return widget
+
+    def _on_dashboard_chat_submit(self):
+        text = self.dashboard_chat_input.text().strip()
+        if text:
+            self.dashboard_chat_input.clear()
+            self.trigger_text_command_signal.emit(text)
 
     def _create_quick_actions_tab(self) -> QWidget:
         widget = QWidget()
