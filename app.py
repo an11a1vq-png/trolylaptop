@@ -179,6 +179,7 @@ class AssistantCoordinator(QObject):
         print("[Assistant] Đang dừng tất cả dịch vụ...")
         self.listener.stop()
         self.tts.stop()
+        os.system("taskkill /F /IM ollama.exe >nul 2>&1")
         QApplication.quit()
 
 

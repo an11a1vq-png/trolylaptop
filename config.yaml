@@ -24,8 +24,8 @@ intelligence:
   engine_mode: "hybrid"        # "hybrid", "offline_only", "online_only"
   ollama:
     base_url: "http://localhost:11434"
-    model: "qwen2.5:1.5b"      # hoặc qwen2.5:3b
-    timeout_seconds: 15
+    model: "qwen2.5:3b"        # Mô hình 3B thông minh và hiểu tiếng Việt sâu sắc
+    timeout_seconds: 25
   gemini:
     api_key: ""                # Điền API key nếu muốn kích hoạt Google Gemini Cloud
     model: "gemini-2.5-flash"
