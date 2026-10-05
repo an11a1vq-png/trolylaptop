@@ -472,6 +472,33 @@ class DashboardWindow(QMainWindow):
         gen_layout.addLayout(row2)
         layout.addWidget(gen_box)
 
+        # Speech Recognition (STT) Settings
+        stt_box = QGroupBox("Nhận Dạng Giọng Nói (STT Engine)")
+        stt_layout = QVBoxLayout(stt_box)
+
+        row_stt_mode = QHBoxLayout()
+        row_stt_mode.addWidget(QLabel("Chế độ nhận dạng:"))
+        self.stt_mode_combo = QComboBox()
+        self.stt_mode_combo.addItem("🌐 Online Google (Khuyên dùng: Siêu nhạy tiếng Việt, nói chậm vẫn đúng 99%)", "online_first")
+        self.stt_mode_combo.addItem("💻 Whisper Offline (Hoạt động hoàn toàn không cần mạng)", "offline_only")
+
+        cur_mode = self.config.get("speech_recognition", {}).get("mode", "online_first")
+        idx = 0 if cur_mode == "online_first" else 1
+        self.stt_mode_combo.setCurrentIndex(idx)
+        row_stt_mode.addWidget(self.stt_mode_combo)
+        stt_layout.addLayout(row_stt_mode)
+
+        row_whisper = QHBoxLayout()
+        row_whisper.addWidget(QLabel("Mô hình Whisper Offline dự phòng:"))
+        self.stt_model_combo = QComboBox()
+        self.stt_model_combo.addItems(["base", "small", "tiny"])
+        cur_model = self.config.get("speech_recognition", {}).get("model_size", "base")
+        self.stt_model_combo.setCurrentText(cur_model)
+        row_whisper.addWidget(self.stt_model_combo)
+        stt_layout.addLayout(row_whisper)
+
+        layout.addWidget(stt_box)
+
         # Intelligence
         ai_box = QGroupBox("Cấu Hình Trí Tuệ AI (Hybrid Engine)")
         ai_layout = QVBoxLayout(ai_box)
@@ -508,6 +535,8 @@ class DashboardWindow(QMainWindow):
         self.config["general"]["activation_hotkey"] = self.hotkey_input.text().strip()
         words = [w.strip() for w in self.wakewords_input.text().split(",") if w.strip()]
         self.config["general"]["wake_words"] = words
+        self.config.setdefault("speech_recognition", {})["mode"] = self.stt_mode_combo.currentData()
+        self.config["speech_recognition"]["model_size"] = self.stt_model_combo.currentText().strip()
         self.config["intelligence"]["ollama"]["model"] = self.ollama_model_input.text().strip()
         self.config["intelligence"]["gemini"]["api_key"] = self.gemini_key_input.text().strip()
 

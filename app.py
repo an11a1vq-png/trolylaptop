@@ -181,6 +181,7 @@ class AssistantCoordinator(QObject):
     def _on_config_updated(self, new_config: dict):
         self.config = new_config
         self.tts = TTSEngine(self.config)
+        self.stt = STTEngine(self.config)
         self.router = IntentRouter(self.config)
         self.brain = HybridBrain(self.config)
         self.log_message_signal.emit("System", "Đã cập nhật cấu hình mới vào hệ thống.")

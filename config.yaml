@@ -36,7 +36,8 @@ speech_recognition:
   device: cpu
   energy_threshold: 2500
   language: vi
-  model_size: tiny
+  mode: online_first
+  model_size: base
   silence_duration_seconds: 0.8
 text_to_speech:
   online_voice_en: en-US-JennyNeural
