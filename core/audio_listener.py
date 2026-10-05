@@ -29,8 +29,8 @@ class AudioListener:
 
         self.sample_rate = 16000
         self.silence_threshold_time = stt_cfg.get("silence_duration_seconds", 0.8)
-        self.base_energy_threshold = stt_cfg.get("energy_threshold", 2500.0)
-        self.no_speech_timeout = 3.5  # Auto-close after 3.5s if user hasn't spoken
+        self.base_energy_threshold = float(stt_cfg.get("energy_threshold", 25.0))
+        self.no_speech_timeout = 30.0  # Safe idle timeout (user can press Ctrl+Space anytime to close)
 
         self.on_speech_recorded = on_speech_recorded
         self.on_listen_canceled = on_listen_canceled
@@ -45,8 +45,8 @@ class AudioListener:
         self.silence_start_time = None
         self.record_start_time = None
 
-        # Ambient noise calibration
-        self.ambient_noise_floor = 2000.0
+        # Ambient noise calibration (real mic noise floor is ~1.8 - 2.8 RMS)
+        self.ambient_noise_floor = 2.0
         self.effective_threshold = self.base_energy_threshold
         self.consecutive_speech_chunks = 0
 
@@ -101,7 +101,7 @@ class AudioListener:
         # Dynamically set speech threshold higher than measured ambient noise
         self.effective_threshold = max(
             float(self.base_energy_threshold),
-            float(self.ambient_noise_floor * 1.5 + 800.0)
+            float(self.ambient_noise_floor * 2.5 + 8.0)
         )
         self.speech_detected = False
         self.consecutive_speech_chunks = 0
@@ -113,16 +113,14 @@ class AudioListener:
     def stop_listen_manually(self) -> bool:
         """
         Called on 2nd Ctrl + Space press: toggles listening OFF immediately.
-        Returns True if meaningful speech was recorded and will be processed,
-        or False if canceled.
+        If speech/audio was captured (>0.25s), transcribes it immediately instead of canceling.
         """
         if not self.is_recording:
             return False
 
-        has_speech = self.speech_detected and len(self.recorded_frames) > 8
-        if has_speech:
+        if len(self.recorded_frames) > 4:
             print("[AudioListener] Nhận phím tắt đóng (Ctrl + Space): Đang xử lý giọng nói đã ghi...")
-            self._finish_phrase()
+            self._finish_phrase(force_transcribe=True)
             return True
         else:
             print("[AudioListener] Nhận phím tắt đóng (Ctrl + Space): Đã tắt micro.")
@@ -145,7 +143,7 @@ class AudioListener:
 
             # State A: Waiting for user to start speaking
             if not self.speech_detected:
-                # Timeout if user opened mic but didn't speak
+                # Safety timeout if user opened mic but didn't speak for 30s
                 if self.record_start_time and (time.time() - self.record_start_time > self.no_speech_timeout):
                     print(f"[AudioListener] Không phát hiện giọng nói sau {self.no_speech_timeout}s -> Tự động đóng micro.")
                     self._cancel_listen(reason="timeout")
@@ -153,7 +151,7 @@ class AudioListener:
 
                 if rms > self.effective_threshold:
                     self.consecutive_speech_chunks += 1
-                    if self.consecutive_speech_chunks >= 2:
+                    if self.consecutive_speech_chunks >= 1:
                         self.speech_detected = True
                         self.silence_start_time = None
                         print(f"[AudioListener] Đã nhận diện tiếng nói (RMS: {round(rms, 1)})")
@@ -172,14 +170,14 @@ class AudioListener:
                 else:
                     self.silence_start_time = None
 
-                # Safety maximum duration (7.0 seconds of continuous speech)
-                if self.record_start_time and (time.time() - self.record_start_time > 7.0):
-                    print("[AudioListener] Đạt giới hạn thời gian ghi âm (7s) -> Đang xử lý...")
+                # Safety maximum duration (15.0 seconds of continuous speech)
+                if self.record_start_time and (time.time() - self.record_start_time > 15.0):
+                    print("[AudioListener] Đạt giới hạn thời gian ghi âm (15s) -> Đang xử lý...")
                     self._finish_phrase()
 
-    def _finish_phrase(self):
+    def _finish_phrase(self, force_transcribe: bool = False):
         """Finish recording and send to STT if valid speech was detected."""
-        was_detected = self.speech_detected
+        was_detected = self.speech_detected or force_transcribe
         frames_count = len(self.recorded_frames)
 
         self.is_recording = False
@@ -187,7 +185,7 @@ class AudioListener:
         self.silence_start_time = None
         self.record_start_time = None
 
-        if was_detected and frames_count > 8:
+        if was_detected and frames_count > 4:
             raw_audio = np.concatenate(self.recorded_frames, axis=0)
             float_audio = raw_audio.astype(np.float32) / 32768.0
             float_audio = np.squeeze(float_audio)

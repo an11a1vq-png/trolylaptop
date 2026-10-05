@@ -34,7 +34,7 @@ safety:
 speech_recognition:
   compute_type: int8
   device: cpu
-  energy_threshold: 2500
+  energy_threshold: 25.0
   language: vi
   mode: online_first
   model_size: base

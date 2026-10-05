@@ -8,7 +8,7 @@ class NovaCosmicWaveWidget(QWidget):
     """Futuristic Cosmic Neon Glow waveform for NOVA (Cyan to Purple/Violet)."""
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(150, 36)
+        self.setFixedSize(150, 44)
         self.phase = 0.0
         self.is_animating = False
 
@@ -41,6 +41,7 @@ class NovaCosmicWaveWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setClipRect(self.rect())
         
         spacing = 26
         start_x = 22

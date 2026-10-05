@@ -82,12 +82,12 @@ class STTEngine:
         3. Attempts Online Google Speech Recognition for near 99% accuracy.
         4. If network fails or offline mode is chosen, seamlessly falls back to Whisper Offline.
         """
-        if len(audio_data) < sample_rate * 0.3:
+        if len(audio_data) < sample_rate * 0.25:
             return "", "unknown"
 
-        # Check silence
+        # Check silence (real laptop noise is ~1.8-2.5 RMS / ~0.00007, voice starts ~25 RMS / ~0.0007)
         rms = np.sqrt(np.mean(audio_data.astype(np.float32) ** 2))
-        if rms < 0.004:
+        if rms < 0.00015:
             return "", self.language
 
         # Audio Normalization (boost quiet speech or scale loud speech cleanly)
