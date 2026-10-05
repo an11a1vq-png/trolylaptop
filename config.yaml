@@ -20,13 +20,13 @@ general:
 intelligence:
   engine_mode: hybrid
   gemini:
-    api_key: ""
+    api_key: AIzaSyAP5_SjGmvDAgH2T7UZF3DdH5QeCwa9tdg
     model: gemini-2.5-flash
   ollama:
     base_url: http://localhost:11434
     model: qwen2.5:3b
-    timeout_seconds: 25
     preload: true
+    timeout_seconds: 25
 safety:
   confirm_restart: true
   confirm_scripts: true
@@ -34,10 +34,10 @@ safety:
 speech_recognition:
   compute_type: int8
   device: cpu
-  energy_threshold: 800
+  energy_threshold: 2500
   language: vi
   model_size: tiny
-  silence_duration_seconds: 0.9
+  silence_duration_seconds: 0.8
 text_to_speech:
   online_voice_en: en-US-JennyNeural
   online_voice_vi: vi-VN-HoaiMyNeural

@@ -155,3 +155,13 @@ class FloatingOverlayWidget(QWidget):
         self.show()
         if auto_hide_seconds > 0:
             self.hide_timer.start(auto_hide_seconds * 1000)
+
+    def show_idle(self, text: str = "Đã tắt micro lắng nghe.", auto_hide_seconds: int = 2):
+        self.wave_widget.stop()
+        self.status_label.setText("⚡ NOVA TẮT MIC")
+        self.status_label.setStyleSheet("color: #7F8C8D; font-size: 13px; font-weight: 700; letter-spacing: 1px; border: none; background: transparent;")
+        self.text_label.setText(text)
+        self.show()
+        if auto_hide_seconds > 0:
+            self.hide_timer.start(auto_hide_seconds * 1000)
+

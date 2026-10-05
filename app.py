@@ -41,6 +41,7 @@ class AssistantCoordinator(QObject):
     show_listening_signal = pyqtSignal()
     show_thinking_signal = pyqtSignal(str)
     show_response_signal = pyqtSignal(str)
+    show_idle_signal = pyqtSignal(str)
     show_spotlight_signal = pyqtSignal()
     log_message_signal = pyqtSignal(str, str)
 
@@ -70,6 +71,7 @@ class AssistantCoordinator(QObject):
         self.show_listening_signal.connect(self.overlay.show_listening)
         self.show_thinking_signal.connect(self.overlay.show_thinking)
         self.show_response_signal.connect(self.overlay.show_response)
+        self.show_idle_signal.connect(self.overlay.show_idle)
         self.show_spotlight_signal.connect(self.spotlight.show_spotlight)
         self.log_message_signal.connect(self.dashboard.add_log)
 
@@ -87,7 +89,11 @@ class AssistantCoordinator(QObject):
         self.spotlight.submit_command_signal.connect(self._on_spotlight_submit)
 
         # Audio & Wake Word (Both Voice Hotkey & Spotlight Text Hotkey)
-        self.listener = AudioListener(self.config, on_speech_recorded=self._on_speech_recorded)
+        self.listener = AudioListener(
+            self.config,
+            on_speech_recorded=self._on_speech_recorded,
+            on_listen_canceled=self._on_listen_canceled
+        )
         self.wake_detector = WakeWordDetector(
             self.config,
             on_activation=self._on_hotkey_activated,
@@ -120,12 +126,33 @@ class AssistantCoordinator(QObject):
         self.log_message_signal.emit("System", "⚡ Hệ thống trợ lý AI NOVA đã sẵn sàng hoạt động!")
 
     def _on_hotkey_activated(self, source: str = "hotkey"):
-        """Called when Ctrl + Space is pressed (Voice Mode)."""
+        """Called when Ctrl + Space is pressed (Voice Mode Toggle: Open on 1st, Close on 2nd)."""
+        # If currently listening, 2nd press TOGGLES IT OFF immediately!
+        if self.listener.is_recording:
+            has_speech = self.listener.stop_listen_manually()
+            self.tts.stop()
+            if not has_speech:
+                self.tts.play_sound_effect(self.beep_done)
+                self.show_idle_signal.emit("Đã dừng lắng nghe micro (Ctrl + Space)")
+            return
+
+        # 1st press: TOGGLES IT ON!
         self.tts.stop()  # Ngắt lời tức thì nếu AI đang nói
         self.is_waiting_direct_command = True
         self.listener.trigger_hotkey_listen()
         self.tts.play_sound_effect(self.beep_listen)
         self.show_listening_signal.emit()
+
+    def _on_listen_canceled(self, reason: str = "timeout"):
+        """Called when listening is canceled or times out without speech."""
+        self.is_waiting_direct_command = False
+        if reason == "timeout":
+            self.show_idle_signal.emit("Không phát hiện câu nói, đã tự động tắt mic.")
+        elif reason == "manual_stop":
+            self.show_idle_signal.emit("Đã dừng lắng nghe micro (Ctrl + Space)")
+        else:
+            self.show_idle_signal.emit("Đã dừng lắng nghe.")
+
 
     def _on_text_hotkey_activated(self):
         """Called when Ctrl + Shift + Space is pressed (Spotlight Bar)."""
