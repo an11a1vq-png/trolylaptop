@@ -15,6 +15,7 @@ from actions.window_manager import (
 )
 from actions.voice_dictation import dictation_manager
 from actions.custom_scripts import open_folder, run_custom_script
+from actions.math_solver import solve_math_query
 from core.command_manager import command_manager
 
 
@@ -82,6 +83,11 @@ class IntentRouter:
         if dictation_manager.is_dictating:
             dictation_manager.type_text(raw_text)
             return True, f"Đã gõ: {raw_text}", "dictation"
+
+        # 3. Quick Math Solver (< 0.5ms instant response for all arithmetic in Vietnamese & numbers)
+        math_reply = solve_math_query(raw_text) or solve_math_query(norm)
+        if math_reply:
+            return True, math_reply, "action"
 
         # 3. Natural Language Command Training (e.g. 'Dạy lệnh /game: mở goose goose duck')
         teach_result = command_manager.parse_and_teach(raw_text)

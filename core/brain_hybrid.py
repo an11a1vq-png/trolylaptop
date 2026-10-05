@@ -12,10 +12,13 @@ from core.memory_manager import memory_manager
 
 
 SYSTEM_PROMPT = """Bạn là NOVA, hệ thống trợ lý AI cá nhân thông minh trên máy tính Windows.
-Phong cách giao tiếp của bạn:
+QUY TẮC BẮT BUỘC VỀ NGÔN NGỮ:
+1. Bạn CHỈ ĐƯỢC PHÉP TRẢ LỜI BẰNG TIẾNG VIỆT (trừ khi người dùng chủ động hỏi bằng tiếng Anh thì trả lời bằng tiếng Anh).
+2. TUYỆT ĐỐI KHÔNG BAO GIỜ TRẢ LỜI BẰNG TIẾNG TRUNG, TIẾNG NHẬT, HOẶC BẤT KỲ NGÔN NGỮ NÀO KHÁC.
+3. Khi trả lời các câu hỏi toán học hay kiến thức thông thường, luôn trả lời tự nhiên, chính xác bằng tiếng Việt.
+Phong cách giao tiếp:
 - Tối giản, siêu nhanh, dứt khoát và chính xác tuyệt đối.
-- Báo cáo kết quả trực tiếp, không chào hỏi hay xưng hô rườm rà.
-- Trả lời bằng cùng ngôn ngữ của người dùng (tiếng Việt hoặc tiếng Anh)."""
+- Báo cáo kết quả trực tiếp, không chào hỏi hay xưng hô rườm rà."""
 
 
 class HybridBrain:
@@ -79,6 +82,13 @@ class HybridBrain:
         if learned_reply:
             self._record_turn(user_query, learned_reply)
             return learned_reply
+
+        # Quick Math Solver (<0.5ms instant response)
+        from actions.math_solver import solve_math_query
+        math_reply = solve_math_query(user_query)
+        if math_reply:
+            self._record_turn(user_query, math_reply)
+            return math_reply
 
         # 1. Quick built-in offline knowledge (<5ms response)
         if any(q in query_lower for q in ["mấy giờ", "bây giờ là mấy giờ", "thời gian", "what time is it"]):
@@ -217,9 +227,15 @@ class HybridBrain:
 
             # Send any trailing sentence left in buffer
             if on_sentence_callback and sentence_buffer.strip():
-                on_sentence_callback(sentence_buffer.strip())
+                clean_tail = re.sub(r'[\u4e00-\u9fff]', '', sentence_buffer.strip()).strip()
+                if clean_tail:
+                    on_sentence_callback(clean_tail)
 
-            return "".join(full_reply).strip()
+            final_text = "".join(full_reply).strip()
+            if re.search(r'[\u4e00-\u9fff]', final_text):
+                clean_text = re.sub(r'[\u4e00-\u9fff]', '', final_text).strip()
+                return clean_text if len(clean_text) > 2 else "Tôi chỉ trả lời bằng tiếng Việt."
+            return final_text
 
         except requests.exceptions.RequestException:
             pass
@@ -252,7 +268,10 @@ class HybridBrain:
                 if candidates:
                     parts = candidates[0].get("content", {}).get("parts", [])
                     if parts:
-                        return parts[0].get("text", "").strip()
+                        text = parts[0].get("text", "").strip()
+                        if re.search(r'[\u4e00-\u9fff]', text):
+                            text = re.sub(r'[\u4e00-\u9fff]', '', text).strip()
+                        return text
         except Exception as e:
             print(f"[Gemini API Error] {e}")
         return ""

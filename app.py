@@ -237,9 +237,20 @@ class AssistantCoordinator(QObject):
             # 2. Free Conversational Query -> Hybrid Brain
             if is_voice:
                 self.show_thinking_signal.emit("Đang suy luận...")
-                ai_reply = self.brain.think_and_reply(query)
-                self.show_response_signal.emit(ai_reply)
-                self.tts.speak(ai_reply)
+                spoken_sentences = []
+
+                def _stream_sentence_callback(sentence: str):
+                    if sentence:
+                        spoken_sentences.append(sentence)
+                        self.show_response_signal.emit(sentence)
+                        self.tts.speak(sentence)
+
+                ai_reply = self.brain.think_and_reply(query, on_sentence_callback=_stream_sentence_callback)
+                if not spoken_sentences:
+                    self.show_response_signal.emit(ai_reply)
+                    self.tts.speak(ai_reply)
+                else:
+                    self.show_response_signal.emit(ai_reply)
             else:
                 # Silent mode for typed text commands
                 if source == "spotlight":

@@ -55,9 +55,12 @@ class MemoryManager:
 
     def add_turn(self, role: str, content: str):
         """Record a single turn and save to disk."""
+        clean_content = re.sub(r'[\u4e00-\u9fff]', '', content).strip()
+        if not clean_content:
+            clean_content = content.strip()
         self.conversation_history.append({
             "role": role,
-            "content": content,
+            "content": clean_content,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
         self._save()
@@ -66,9 +69,11 @@ class MemoryManager:
         """Return history in role/content format suitable for LLMs."""
         formatted = []
         for msg in self.conversation_history[-max_turns:]:
+            raw_c = msg.get("content", "")
+            clean_c = re.sub(r'[\u4e00-\u9fff]', '', raw_c).strip()
             formatted.append({
                 "role": msg.get("role", "user"),
-                "content": msg.get("content", "")
+                "content": clean_c or raw_c
             })
         return formatted
 
